@@ -2,6 +2,7 @@ package api
 
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import kotlinx.serialization.json.Json
+import model.BasicApiResponse
 import model.User
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
@@ -19,7 +20,7 @@ interface AuthService {
     suspend fun login(
         @Field("email") email: String,
         @Field("password") password: String
-    ): User
+    ): BasicApiResponse<User>
 
     @POST("register")
     @FormUrlEncoded
