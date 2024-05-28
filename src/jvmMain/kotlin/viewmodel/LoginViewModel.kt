@@ -41,9 +41,9 @@ class LoginViewModel internal constructor(
         }
     }
 
-    fun login(email: String = state.email, password: String = state.password) {
-        if (isEmailValid(email) && isPasswordValid(password)) {
-            repository.login(email, password)
+    fun login() {
+        if (isEmailValid(state.email) && isPasswordValid(state.password)) {
+            repository.login(state.email, state.password)
                 .onEach { result ->
                     when (result) {
                         is Resource.Success -> {
