@@ -50,7 +50,7 @@ fun LoginScreen() {
                 }
             }
             Button(
-                onClick = { viewModel.login() },
+                onClick = viewModel::login,
                 modifier = Modifier.fillMaxWidth().padding(10.dp)
             ) {
                 Text("LOGIN", modifier = Modifier.padding(10.dp), fontSize = 15.sp, textAlign = TextAlign.Center)
