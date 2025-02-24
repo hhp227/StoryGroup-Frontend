@@ -9,7 +9,7 @@ import viewmodel.MainViewModel
 import viewmodel.RegisterViewModel
 
 object InjectorUtils {
-    private val preferenceManager = PreferenceManager()
+    private val preferenceManager = PreferenceManager.getInstance()
 
     private fun getUserRepository(): UserRepository {
         return UserRepository.getInstance(AuthService.create())

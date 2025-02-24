@@ -33,6 +33,7 @@ kotlin {
                 implementation("com.squareup.retrofit2:retrofit:2.9.0")
                 implementation("com.squareup.okhttp3:logging-interceptor:4.9.2")
                 implementation("com.jakewharton.retrofit:retrofit2-kotlinx-serialization-converter:0.8.0")
+                implementation("androidx.datastore:datastore-core:1.0.0")
                 implementation("org.jetbrains.compose.material:material-icons-extended:${extra["compose.version"] as String}")
             }
         }

@@ -10,7 +10,7 @@ class MainViewModel(private val preferenceManager: PreferenceManager) : ViewMode
     fun clear() {
         viewModelScope.launch {
             delay(100)
-            preferenceManager.clearUser()
+            preferenceManager.storeUser(null)
         }
     }
 }
