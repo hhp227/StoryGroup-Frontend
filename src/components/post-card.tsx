@@ -1,0 +1,47 @@
+import Link from "next/link";
+import type { Post } from "@/lib/api";
+
+export function PostCard({ post }: { post: Post }) {
+  return (
+    <Link href={`/groups/${post.groupId}/posts/${post.id}`} style={{ display: "block" }}>
+      <article className="card" style={{ cursor: "pointer" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-3)" }}>
+          <div className="avatar">{post.authorName.slice(0, 1)}</div>
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <span style={{ fontSize: "0.92rem", fontWeight: 700 }}>{post.authorName}</span>
+            <span style={{ fontSize: "0.75rem", color: "var(--ink-faint)" }}>
+              {new Date(post.createdAt).toLocaleString("ko-KR")}
+            </span>
+          </div>
+        </div>
+        <p
+          style={{
+            fontSize: "0.98rem",
+            lineHeight: 1.6,
+            margin: "var(--sp-4) 0",
+            whiteSpace: "pre-wrap",
+            display: "-webkit-box",
+            WebkitLineClamp: 6,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+          }}
+        >
+          {post.text}
+        </p>
+        {post.images.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
+            {post.images.slice(0, 1).map((img) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={img.id}
+                src={img.image}
+                alt=""
+                style={{ width: "100%", borderRadius: 10, border: "1px solid var(--stone-border)" }}
+              />
+            ))}
+          </div>
+        )}
+      </article>
+    </Link>
+  );
+}

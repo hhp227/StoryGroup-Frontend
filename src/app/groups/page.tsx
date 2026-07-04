@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
 import { ApiError, createGroup, listMyGroups, type Group } from "@/lib/api";
@@ -75,18 +76,24 @@ export default function GroupsPage() {
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
         {loadError && <p className="field-error">{loadError}</p>}
         {groups === null && !loadError && <p style={{ color: "var(--ink-faint)" }}>불러오는 중...</p>}
-        {groups?.length === 0 && <p style={{ color: "var(--ink-faint)" }}>아직 그룹이 없습니다. 위에서 새로 만들어보세요.</p>}
-        {groups?.map((group) => (
-          <div key={group.id} className="card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div>
-              <div style={{ fontWeight: 700 }}>{group.name}</div>
-              {group.description && <div style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }}>{group.description}</div>}
-            </div>
-            <span className={`chip ${group.myRole === "OWNER" ? "chip-owner" : "chip-member"}`}>
-              {group.myRole === "OWNER" ? "방장" : "멤버"}
-            </span>
-          </div>
-        ))}
+        {groups && groups.filter((g) => !g.isLounge).length === 0 && (
+          <p style={{ color: "var(--ink-faint)" }}>아직 그룹이 없습니다. 위에서 새로 만들어보세요.</p>
+        )}
+        {groups
+          ?.filter((g) => !g.isLounge)
+          .map((group) => (
+            <Link key={group.id} href={`/groups/${group.id}`}>
+              <div className="card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
+                <div>
+                  <div style={{ fontWeight: 700 }}>{group.name}</div>
+                  {group.description && <div style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }}>{group.description}</div>}
+                </div>
+                <span className={`chip ${group.myRole === "OWNER" ? "chip-owner" : "chip-member"}`}>
+                  {group.myRole === "OWNER" ? "방장" : "멤버"}
+                </span>
+              </div>
+            </Link>
+          ))}
       </div>
     </div>
   );

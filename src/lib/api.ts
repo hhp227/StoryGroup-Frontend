@@ -89,6 +89,10 @@ export function listMyGroups(token: string) {
   return request<Group[]>("/api/groups", { token });
 }
 
+export function getGroup(token: string, groupId: number) {
+  return request<Group>(`/api/groups/${groupId}`, { token });
+}
+
 export function createGroup(token: string, name: string, description: string | null) {
   return request<Group>("/api/groups", {
     method: "POST",
@@ -123,4 +127,68 @@ export function createPost(token: string, groupId: number, text: string, images?
     token,
     body: JSON.stringify({ text, images }),
   });
+}
+
+export function getPost(token: string, groupId: number, postId: number) {
+  return request<Post>(`/api/groups/${groupId}/posts/${postId}`, { token });
+}
+
+export interface Like {
+  userId: number;
+  authorName: string;
+  authorProfileImg: string | null;
+  createdAt: string;
+}
+
+export function listLikes(token: string, groupId: number, postId: number) {
+  return request<Like[]>(`/api/groups/${groupId}/posts/${postId}/likes`, { token });
+}
+
+export function likePost(token: string, groupId: number, postId: number) {
+  return request<void>(`/api/groups/${groupId}/posts/${postId}/likes`, { method: "POST", token });
+}
+
+export function unlikePost(token: string, groupId: number, postId: number) {
+  return request<void>(`/api/groups/${groupId}/posts/${postId}/likes`, { method: "DELETE", token });
+}
+
+export interface Comment {
+  id: number;
+  postId: number;
+  userId: number;
+  authorName: string;
+  authorProfileImg: string | null;
+  parentReplyId: number | null;
+  text: string;
+  createdAt: string;
+}
+
+export function listComments(token: string, groupId: number, postId: number) {
+  return request<Comment[]>(`/api/groups/${groupId}/posts/${postId}/comments`, { token });
+}
+
+export function createComment(token: string, groupId: number, postId: number, text: string, parentReplyId?: number) {
+  return request<Comment>(`/api/groups/${groupId}/posts/${postId}/comments`, {
+    method: "POST",
+    token,
+    body: JSON.stringify({ text, parentReplyId }),
+  });
+}
+
+export function deleteComment(token: string, groupId: number, postId: number, commentId: number) {
+  return request<void>(`/api/groups/${groupId}/posts/${postId}/comments/${commentId}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
+// JWT payload는 서버가 서명한 것을 그대로 들고 있는 클라이언트가 읽는 것뿐이라 디코딩만(검증 아님) 해도 안전하다.
+// "좋아요 눌렀는지", "내 댓글인지" 같은 UI 상태 판단에만 쓴다 — 실제 권한 검증은 항상 서버가 한다.
+export function getUserIdFromToken(token: string): number | null {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload.sub ? Number(payload.sub) : null;
+  } catch {
+    return null;
+  }
 }
