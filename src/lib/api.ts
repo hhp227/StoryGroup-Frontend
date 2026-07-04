@@ -82,6 +82,7 @@ export interface Group {
   joinType: GroupJoinType;
   myRole: GroupRole;
   createdAt: string;
+  isLounge: boolean;
 }
 
 export function listMyGroups(token: string) {
@@ -93,5 +94,33 @@ export function createGroup(token: string, name: string, description: string | n
     method: "POST",
     token,
     body: JSON.stringify({ name, description }),
+  });
+}
+
+export interface PostImage {
+  id: number;
+  image: string;
+}
+
+export interface Post {
+  id: number;
+  groupId: number;
+  userId: number;
+  authorName: string;
+  authorProfileImg: string | null;
+  text: string;
+  images: PostImage[];
+  createdAt: string;
+}
+
+export function listPosts(token: string, groupId: number, page = 0, size = 20) {
+  return request<Post[]>(`/api/groups/${groupId}/posts?page=${page}&size=${size}`, { token });
+}
+
+export function createPost(token: string, groupId: number, text: string, images?: string[]) {
+  return request<Post>(`/api/groups/${groupId}/posts`, {
+    method: "POST",
+    token,
+    body: JSON.stringify({ text, images }),
   });
 }

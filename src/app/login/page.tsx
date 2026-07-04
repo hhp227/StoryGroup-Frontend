@@ -23,7 +23,7 @@ function LoginForm() {
     setIsSubmitting(true);
     try {
       await login(email, password);
-      router.push("/groups");
+      router.push("/");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "로그인에 실패했습니다. 잠시 후 다시 시도해주세요.");
     } finally {

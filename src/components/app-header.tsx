@@ -27,17 +27,29 @@ export function AppHeader() {
         background: "var(--linen)",
       }}
     >
-      <Link
-        href="/"
-        style={{
-          fontFamily: "var(--font-display)",
-          fontWeight: "var(--display-weight)" as never,
-          letterSpacing: "var(--display-tracking)",
-          fontSize: "1.15rem",
-        }}
-      >
-        StoryGroup
-      </Link>
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-5)" }}>
+        <Link
+          href="/"
+          style={{
+            fontFamily: "var(--font-display)",
+            fontWeight: "var(--display-weight)" as never,
+            letterSpacing: "var(--display-tracking)",
+            fontSize: "1.15rem",
+          }}
+        >
+          StoryGroup
+        </Link>
+        {isReady && accessToken && (
+          <nav style={{ display: "flex", gap: "var(--sp-4)" }}>
+            <Link href="/" style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--ink-soft)" }}>
+              홈
+            </Link>
+            <Link href="/groups" style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--ink-soft)" }}>
+              그룹
+            </Link>
+          </nav>
+        )}
+      </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-4)" }}>
         <div style={{ display: "flex", gap: "4px", background: "var(--paper)", border: "1px solid var(--stone-border)", borderRadius: 999, padding: 3 }}>
