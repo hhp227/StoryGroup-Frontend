@@ -1,0 +1,97 @@
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+export class ApiError extends Error {
+  code: string;
+  status: number;
+
+  constructor(status: number, code: string, message: string) {
+    super(message);
+    this.status = status;
+    this.code = code;
+  }
+}
+
+interface RequestOptions extends RequestInit {
+  token?: string;
+}
+
+async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const { token, headers, ...rest } = options;
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...rest,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...headers,
+    },
+  });
+
+  if (!res.ok) {
+    let code = "UNKNOWN";
+    let message = "요청을 처리하지 못했습니다";
+    try {
+      const body = await res.json();
+      code = body.code ?? code;
+      message = body.message ?? message;
+    } catch {
+      // 응답 본문이 JSON이 아닌 경우(예: 토큰 만료 시 Spring 기본 403) 기본 메시지 사용
+    }
+    throw new ApiError(res.status, code, message);
+  }
+
+  if (res.status === 204) return undefined as T;
+  return res.json() as Promise<T>;
+}
+
+export interface UserSummary {
+  id: number;
+  name: string;
+  email: string;
+  profileImg: string | null;
+}
+
+export interface TokenResponse {
+  accessToken: string;
+  refreshToken: string;
+  tokenType: string;
+  expiresIn: number;
+}
+
+export function registerUser(name: string, email: string, password: string) {
+  return request<UserSummary>("/api/auth/register", {
+    method: "POST",
+    body: JSON.stringify({ name, email, password }),
+  });
+}
+
+export function loginUser(email: string, password: string) {
+  return request<TokenResponse>("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export type GroupJoinType = "PRIVATE" | "INVITE_ONLY";
+export type GroupRole = "OWNER" | "MEMBER";
+
+export interface Group {
+  id: number;
+  name: string;
+  description: string | null;
+  image: string | null;
+  joinType: GroupJoinType;
+  myRole: GroupRole;
+  createdAt: string;
+}
+
+export function listMyGroups(token: string) {
+  return request<Group[]>("/api/groups", { token });
+}
+
+export function createGroup(token: string, name: string, description: string | null) {
+  return request<Group>("/api/groups", {
+    method: "POST",
+    token,
+    body: JSON.stringify({ name, description }),
+  });
+}

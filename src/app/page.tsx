@@ -1,66 +1,30 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+import Link from "next/link";
 
 export default function Home() {
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.tsx file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+    <div style={{ maxWidth: 640, margin: "0 auto", padding: "var(--sp-8) var(--sp-5)" }}>
+      <h1
+        style={{
+          fontFamily: "var(--font-display)",
+          fontWeight: "var(--display-weight)" as never,
+          letterSpacing: "var(--display-tracking)",
+          fontSize: "2.3rem",
+          marginBottom: "var(--sp-4)",
+        }}
+      >
+        조용히, 우리끼리
+      </h1>
+      <p style={{ color: "var(--ink-soft)", fontSize: "1.05rem", lineHeight: 1.65, marginBottom: "var(--sp-6)", maxWidth: "56ch" }}>
+        친한 사람들끼리만 모이는 폐쇄형 그룹 SNS, StoryGroup입니다. 그룹을 만들고 게시글, 댓글, 채팅, 화상회의까지 한곳에서.
+      </p>
+      <div style={{ display: "flex", gap: "var(--sp-3)" }}>
+        <Link className="btn btn-primary" href="/register">
+          시작하기
+        </Link>
+        <Link className="btn btn-secondary" href="/login">
+          로그인
+        </Link>
+      </div>
     </div>
   );
 }

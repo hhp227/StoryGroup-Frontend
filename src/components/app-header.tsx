@@ -1,0 +1,109 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "./auth-provider";
+import { useTheme } from "./theme-provider";
+
+export function AppHeader() {
+  const { mood, mode, setMood, setMode } = useTheme();
+  const { accessToken, isReady, logout } = useAuth();
+  const router = useRouter();
+
+  function handleLogout() {
+    logout();
+    router.push("/login");
+  }
+
+  return (
+    <header
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: "var(--sp-4)",
+        padding: "var(--sp-4) var(--sp-5)",
+        borderBottom: "1px solid var(--stone-border)",
+        background: "var(--linen)",
+      }}
+    >
+      <Link
+        href="/"
+        style={{
+          fontFamily: "var(--font-display)",
+          fontWeight: "var(--display-weight)" as never,
+          letterSpacing: "var(--display-tracking)",
+          fontSize: "1.15rem",
+        }}
+      >
+        StoryGroup
+      </Link>
+
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-4)" }}>
+        <div style={{ display: "flex", gap: "4px", background: "var(--paper)", border: "1px solid var(--stone-border)", borderRadius: 999, padding: 3 }}>
+          <ThemeButton active={mood === "warm"} onClick={() => setMood("warm")}>
+            다정함
+          </ThemeButton>
+          <ThemeButton active={mood === "vibrant"} onClick={() => setMood("vibrant")}>
+            캐주얼
+          </ThemeButton>
+        </div>
+        <div style={{ display: "flex", gap: "4px", background: "var(--paper)", border: "1px solid var(--stone-border)", borderRadius: 999, padding: 3 }}>
+          <ThemeButton active={mode === "light"} onClick={() => setMode("light")}>
+            라이트
+          </ThemeButton>
+          <ThemeButton active={mode === "dark"} onClick={() => setMode("dark")}>
+            다크
+          </ThemeButton>
+        </div>
+
+        {isReady && (
+          accessToken ? (
+            <button className="btn btn-ghost" type="button" onClick={handleLogout}>
+              로그아웃
+            </button>
+          ) : (
+            <>
+              <Link className="btn btn-ghost" href="/login">
+                로그인
+              </Link>
+              <Link className="btn btn-primary" href="/register">
+                가입하기
+              </Link>
+            </>
+          )
+        )}
+      </div>
+    </header>
+  );
+}
+
+function ThemeButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        fontFamily: "var(--font-body)",
+        fontSize: "0.78rem",
+        fontWeight: 700,
+        color: active ? "var(--on-accent)" : "var(--ink-soft)",
+        background: active ? "var(--accent)" : "transparent",
+        border: "none",
+        borderRadius: 999,
+        padding: "6px 12px",
+        cursor: "pointer",
+      }}
+    >
+      {children}
+    </button>
+  );
+}

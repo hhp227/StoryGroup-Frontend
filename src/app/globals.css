@@ -1,49 +1,239 @@
+/* ===== StoryGroup 디자인 시스템 토큰 ===== */
+/* 무드(warm/vibrant) x 모드(light/dark) 조합. data-mood/data-theme는 ThemeProvider가 <html>에 설정한다. */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+  --sp-8: 64px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ---- 다정함(warm) ---- */
+html[data-mood="warm"][data-theme="light"] {
+  --paper: #fcf3ef;
+  --linen: #ffffff;
+  --ink: #3d2b2a;
+  --ink-soft: #8a716c;
+  --ink-faint: #b29892;
+  --stone-border: #f1dcd2;
+  --accent: #c4577c;
+  --accent-soft: #f7e1ea;
+  --on-accent: #ffffff;
+  --accent2: #d9a441;
+  --accent2-soft: #f7ebd3;
+  --moss: #6b8f52;
+  --amber: #c08a2e;
+  --rust: #b23b3b;
+  --shadow: rgba(61, 43, 42, 0.08);
+}
+html[data-mood="warm"][data-theme="dark"] {
+  --paper: #241a1c;
+  --linen: #2e2224;
+  --ink: #f7ede9;
+  --ink-soft: #c2a9a4;
+  --ink-faint: #8c7570;
+  --stone-border: #3e2e31;
+  --accent: #e8839f;
+  --accent-soft: rgba(232, 131, 159, 0.16);
+  --on-accent: #241a1c;
+  --accent2: #e8be72;
+  --accent2-soft: rgba(232, 190, 114, 0.16);
+  --moss: #9bc17e;
+  --amber: #e0b15c;
+  --rust: #e08a78;
+  --shadow: rgba(0, 0, 0, 0.4);
+}
+html[data-mood="warm"] {
+  --font-display: var(--font-body);
+  --display-weight: 700;
+  --display-tracking: -0.01em;
+  --radius-card: 18px;
+  --radius-btn: 999px;
 }
 
-html {
-  height: 100%;
+/* ---- 캐주얼(vibrant) ---- */
+html[data-mood="vibrant"][data-theme="light"] {
+  --paper: #fbf7fa;
+  --linen: #ffffff;
+  --ink: #221626;
+  --ink-soft: #6e5e7d;
+  --ink-faint: #9a8cae;
+  --stone-border: #ebe1f0;
+  --accent: #e85a3d;
+  --accent-soft: #fbe3dc;
+  --on-accent: #ffffff;
+  --accent2: #c98a00;
+  --accent2-soft: #f7e7c4;
+  --moss: #2f8f4e;
+  --amber: #c97a2e;
+  --rust: #c23b2e;
+  --shadow: rgba(34, 22, 38, 0.08);
+}
+html[data-mood="vibrant"][data-theme="dark"] {
+  --paper: #1e1626;
+  --linen: #291f33;
+  --ink: #f4eefb;
+  --ink-soft: #b4a4c6;
+  --ink-faint: #7c6d93;
+  --stone-border: #3e304c;
+  --accent: #ff6b4a;
+  --accent-soft: rgba(255, 107, 74, 0.16);
+  --on-accent: #1e1626;
+  --accent2: #ffc94a;
+  --accent2-soft: rgba(255, 201, 74, 0.16);
+  --moss: #8ce0a0;
+  --amber: #ffd37a;
+  --rust: #ff8a76;
+  --shadow: rgba(0, 0, 0, 0.45);
+}
+html[data-mood="vibrant"] {
+  --font-display: var(--font-body);
+  --display-weight: 800;
+  --display-tracking: -0.02em;
+  --radius-card: 12px;
+  --radius-btn: 8px;
 }
 
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
-}
-
-body {
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
+/* ===== 리셋 & 베이스 ===== */
 * {
   box-sizing: border-box;
-  padding: 0;
-  margin: 0;
 }
-
+html,
+body {
+  height: 100%;
+  background: var(--paper);
+}
+body {
+  margin: 0;
+  color: var(--ink);
+  background: var(--paper);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.2s ease, color 0.2s ease;
+}
 a {
   color: inherit;
   text-decoration: none;
 }
+::selection {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
+/* ===== 공용 컴포넌트 ===== */
+.btn {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 10px 20px;
+  border-radius: var(--radius-btn);
+  border: 1px solid transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+}
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.btn-primary {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.btn-secondary {
+  background: transparent;
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--ink-soft);
+}
+.btn-danger {
+  background: transparent;
+  color: var(--rust);
+  border-color: var(--rust);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.field label {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+.field input,
+.field textarea {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  padding: var(--sp-3);
+  border-radius: 10px;
+  border: 1px solid var(--stone-border);
+  background: var(--linen);
+  color: var(--ink);
+}
+.field input:focus,
+.field textarea:focus {
+  border-color: var(--accent);
+}
+.field-error {
+  font-size: 0.8rem;
+  color: var(--rust);
+}
+
+.card {
+  background: var(--linen);
+  border: 1px solid var(--stone-border);
+  border-radius: var(--radius-card);
+  padding: var(--sp-5);
+  box-shadow: 0 1px 2px var(--shadow);
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  background: var(--accent);
+  color: var(--on-accent);
+  flex-shrink: 0;
+}
+.avatar.sm {
+  width: 30px;
+  height: 30px;
+  font-size: 0.72rem;
+}
+
+.chip {
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 4px 14px;
+  border-radius: 999px;
+  display: inline-flex;
+}
+.chip-owner {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.chip-member {
+  background: var(--stone-border);
+  color: var(--ink-soft);
 }
