@@ -29,12 +29,20 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   if (!res.ok) {
     let code = "UNKNOWN";
     let message = "요청을 처리하지 못했습니다";
-    try {
-      const body = await res.json();
-      code = body.code ?? code;
-      message = body.message ?? message;
-    } catch {
-      // 응답 본문이 JSON이 아닌 경우(예: 토큰 만료 시 Spring 기본 403) 기본 메시지 사용
+    // 토큰 만료 시 우리 GlobalExceptionHandler 형식이 아니라 Spring 기본 에러
+    // ({"status":403,"error":"Forbidden","message":""})가 내려온다. message가 빈 문자열이면
+    // `??`로는 안 걸러져서 화면에 빈 에러가 뜨고, 위쪽 로딩 상태가 안 풀린 것처럼 보이는 버그가 있었다.
+    if (res.status === 401 || res.status === 403) {
+      code = "UNAUTHORIZED";
+      message = "로그인이 만료됐습니다. 다시 로그인해주세요.";
+    } else {
+      try {
+        const body = await res.json();
+        code = body.code || code;
+        message = body.message || message;
+      } catch {
+        // 응답 본문이 JSON이 아닌 경우 기본 메시지 사용
+      }
     }
     throw new ApiError(res.status, code, message);
   }
