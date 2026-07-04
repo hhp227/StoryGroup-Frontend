@@ -237,3 +237,34 @@ a {
   background: var(--stone-border);
   color: var(--ink-soft);
 }
+
+.chat-thread {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.bubble-row {
+  display: flex;
+}
+.bubble-row.mine {
+  justify-content: flex-end;
+}
+.bubble {
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  max-width: 78%;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.bubble.theirs {
+  background: var(--linen);
+  border: 1px solid var(--stone-border);
+  border-bottom-left-radius: 4px;
+}
+.bubble.mine {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-bottom-right-radius: 4px;
+}

@@ -182,6 +182,99 @@ export function deleteComment(token: string, groupId: number, postId: number, co
   });
 }
 
+export interface ChatRoom {
+  id: number;
+  groupId: number;
+  name: string;
+  createdAt: string;
+}
+
+export function listChatRooms(token: string, groupId: number) {
+  return request<ChatRoom[]>(`/api/groups/${groupId}/chat-rooms`, { token });
+}
+
+export function createChatRoom(token: string, groupId: number, name: string) {
+  return request<ChatRoom>(`/api/groups/${groupId}/chat-rooms`, {
+    method: "POST",
+    token,
+    body: JSON.stringify({ name }),
+  });
+}
+
+export interface ChatMessage {
+  id: number;
+  chatRoomId: number;
+  userId: number;
+  authorName: string;
+  authorProfileImg: string | null;
+  text: string;
+  createdAt: string;
+}
+
+// 백엔드는 최신순(DESC)으로 내려준다 — 채팅창 표시는 오래된 순이 자연스러워 호출부에서 뒤집어 쓴다.
+export function listMessages(token: string, groupId: number, chatRoomId: number, page = 0, size = 50) {
+  return request<ChatMessage[]>(`/api/groups/${groupId}/chat-rooms/${chatRoomId}/messages?page=${page}&size=${size}`, { token });
+}
+
+export function sendMessage(token: string, groupId: number, chatRoomId: number, text: string) {
+  return request<ChatMessage>(`/api/groups/${groupId}/chat-rooms/${chatRoomId}/messages`, {
+    method: "POST",
+    token,
+    body: JSON.stringify({ text }),
+  });
+}
+
+export function deleteMessage(token: string, groupId: number, chatRoomId: number, messageId: number) {
+  return request<void>(`/api/groups/${groupId}/chat-rooms/${chatRoomId}/messages/${messageId}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
+export interface Meeting {
+  id: number;
+  groupId: number;
+  hostId: number;
+  startedAt: string;
+  endedAt: string | null;
+}
+
+export interface Participant {
+  userId: number;
+  authorName: string;
+  authorProfileImg: string | null;
+  joinedAt: string;
+  leftAt: string | null;
+}
+
+export function listMeetings(token: string, groupId: number, page = 0, size = 20) {
+  return request<Meeting[]>(`/api/groups/${groupId}/meetings?page=${page}&size=${size}`, { token });
+}
+
+export function createMeeting(token: string, groupId: number) {
+  return request<Meeting>(`/api/groups/${groupId}/meetings`, { method: "POST", token });
+}
+
+export function getMeeting(token: string, groupId: number, meetingId: number) {
+  return request<Meeting>(`/api/groups/${groupId}/meetings/${meetingId}`, { token });
+}
+
+export function joinMeeting(token: string, groupId: number, meetingId: number) {
+  return request<void>(`/api/groups/${groupId}/meetings/${meetingId}/join`, { method: "POST", token });
+}
+
+export function leaveMeeting(token: string, groupId: number, meetingId: number) {
+  return request<void>(`/api/groups/${groupId}/meetings/${meetingId}/leave`, { method: "POST", token });
+}
+
+export function endMeeting(token: string, groupId: number, meetingId: number) {
+  return request<void>(`/api/groups/${groupId}/meetings/${meetingId}/end`, { method: "POST", token });
+}
+
+export function listParticipants(token: string, groupId: number, meetingId: number) {
+  return request<Participant[]>(`/api/groups/${groupId}/meetings/${meetingId}/participants`, { token });
+}
+
 // JWT payload는 서버가 서명한 것을 그대로 들고 있는 클라이언트가 읽는 것뿐이라 디코딩만(검증 아님) 해도 안전하다.
 // "좋아요 눌렀는지", "내 댓글인지" 같은 UI 상태 판단에만 쓴다 — 실제 권한 검증은 항상 서버가 한다.
 export function getUserIdFromToken(token: string): number | null {

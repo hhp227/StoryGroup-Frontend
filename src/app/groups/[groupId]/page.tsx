@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
 import { GroupPostFeed } from "@/components/group-post-feed";
@@ -40,6 +41,14 @@ export default function GroupDetailPage() {
             </span>
           </div>
           {group.description && <p style={{ color: "var(--ink-soft)", marginTop: "var(--sp-1)" }}>{group.description}</p>}
+          <div style={{ display: "flex", gap: "var(--sp-3)", marginTop: "var(--sp-4)" }}>
+            <Link className="btn btn-secondary" href={`/groups/${groupId}/chat`}>
+              채팅
+            </Link>
+            <Link className="btn btn-secondary" href={`/groups/${groupId}/meetings`}>
+              화상회의
+            </Link>
+          </div>
         </div>
       )}
       <GroupPostFeed key={groupId} token={accessToken} groupId={groupId} />
