@@ -15,7 +15,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko">
+    <html lang="ko" suppressHydrationWarning>
       <body>
         {/* 라이트/다크·무드 플래시 방지: hydration 전에 동기 실행되어 <html>에 속성을 먼저 세팅한다 */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
