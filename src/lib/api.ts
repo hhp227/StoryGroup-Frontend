@@ -390,6 +390,27 @@ export function markAllNotificationsAsRead(token: string) {
   return request<void>("/api/notifications/read-all", { method: "POST", token });
 }
 
+export interface Profile {
+  id: number;
+  name: string;
+  email: string;
+  profileImg: string | null;
+  bio: string | null;
+  statusMessage: string | null;
+}
+
+export function getMyProfile(token: string) {
+  return request<Profile>("/api/users/me", { token });
+}
+
+export function updateMyProfile(token: string, name: string, profileImg: string | null, bio: string | null, statusMessage: string | null) {
+  return request<Profile>("/api/users/me", {
+    method: "PATCH",
+    token,
+    body: JSON.stringify({ name, profileImg, bio, statusMessage }),
+  });
+}
+
 // JWT payload는 서버가 서명한 것을 그대로 들고 있는 클라이언트가 읽는 것뿐이라 디코딩만(검증 아님) 해도 안전하다.
 // "좋아요 눌렀는지", "내 댓글인지" 같은 UI 상태 판단에만 쓴다 — 실제 권한 검증은 항상 서버가 한다.
 export function getUserIdFromToken(token: string): number | null {

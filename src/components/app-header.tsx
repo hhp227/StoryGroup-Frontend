@@ -100,9 +100,14 @@ export function AppHeader() {
 
         {isReady && (
           accessToken ? (
-            <button className="btn btn-ghost" type="button" onClick={handleLogout}>
-              로그아웃
-            </button>
+            <>
+              <Link className="btn btn-ghost" href="/profile">
+                프로필
+              </Link>
+              <button className="btn btn-ghost" type="button" onClick={handleLogout}>
+                로그아웃
+              </button>
+            </>
           ) : (
             <>
               <Link className="btn btn-ghost" href="/login">
