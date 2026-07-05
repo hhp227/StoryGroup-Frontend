@@ -201,6 +201,14 @@ export function listChatRooms(token: string, groupId: number) {
   return request<ChatRoom[]>(`/api/groups/${groupId}/chat-rooms`, { token });
 }
 
+export function createChatRoom(token: string, groupId: number, name: string) {
+  return request<ChatRoom>(`/api/groups/${groupId}/chat-rooms`, {
+    method: "POST",
+    token,
+    body: JSON.stringify({ name }),
+  });
+}
+
 export interface ChatMessage {
   id: number;
   chatRoomId: number;
