@@ -331,6 +331,65 @@ export function listParticipants(token: string, groupId: number, meetingId: numb
   return request<Participant[]>(`/api/groups/${groupId}/meetings/${meetingId}/participants`, { token });
 }
 
+export interface GroupFile {
+  id: number;
+  groupId: number;
+  userId: number;
+  authorName: string;
+  authorProfileImg: string | null;
+  name: string;
+  url: string;
+  size: number | null;
+  contentType: string | null;
+  createdAt: string;
+}
+
+export function listFiles(token: string, groupId: number, page = 0, size = 20) {
+  return request<GroupFile[]>(`/api/groups/${groupId}/files?page=${page}&size=${size}`, { token });
+}
+
+// 백엔드는 실제 바이너리 업로드를 받지 않고 이미 어딘가(추후 Supabase Storage)에 올라간
+// 파일의 메타데이터(이름/URL)만 등록받는다. 그래서 폼도 URL을 직접 입력하는 형태로 둔다.
+export function uploadFile(token: string, groupId: number, name: string, url: string) {
+  return request<GroupFile>(`/api/groups/${groupId}/files`, {
+    method: "POST",
+    token,
+    body: JSON.stringify({ name, url }),
+  });
+}
+
+export function deleteFile(token: string, groupId: number, fileId: number) {
+  return request<void>(`/api/groups/${groupId}/files/${fileId}`, { method: "DELETE", token });
+}
+
+export type NotificationType = "NEW_POST" | "COMMENT" | "LIKE" | "MENTION" | "CHAT" | "MEETING_STARTED" | "NOTICE" | "INVITE";
+export type NotificationTargetType = "POST" | "REPLY" | "MESSAGE" | "MEETING" | "GROUP";
+
+export interface AppNotification {
+  id: number;
+  type: NotificationType;
+  targetType: NotificationTargetType | null;
+  targetId: number | null;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export function listNotifications(token: string, page = 0, size = 20) {
+  return request<AppNotification[]>(`/api/notifications?page=${page}&size=${size}`, { token });
+}
+
+export function countUnreadNotifications(token: string) {
+  return request<{ count: number }>("/api/notifications/unread-count", { token });
+}
+
+export function markNotificationAsRead(token: string, notificationId: number) {
+  return request<void>(`/api/notifications/${notificationId}/read`, { method: "PATCH", token });
+}
+
+export function markAllNotificationsAsRead(token: string) {
+  return request<void>("/api/notifications/read-all", { method: "POST", token });
+}
+
 // JWT payload는 서버가 서명한 것을 그대로 들고 있는 클라이언트가 읽는 것뿐이라 디코딩만(검증 아님) 해도 안전하다.
 // "좋아요 눌렀는지", "내 댓글인지" 같은 UI 상태 판단에만 쓴다 — 실제 권한 검증은 항상 서버가 한다.
 export function getUserIdFromToken(token: string): number | null {

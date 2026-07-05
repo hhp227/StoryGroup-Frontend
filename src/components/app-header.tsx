@@ -1,7 +1,10 @@
 "use client";
 
+import { useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { countUnreadNotifications } from "@/lib/api";
+import { usePolling } from "@/hooks/use-polling";
 import { useAuth } from "./auth-provider";
 import { useTheme } from "./theme-provider";
 
@@ -9,6 +12,12 @@ export function AppHeader() {
   const { mood, mode, setMood, setMode } = useTheme();
   const { accessToken, isReady, logout } = useAuth();
   const router = useRouter();
+
+  const fetchUnreadCount = useCallback(
+    () => (accessToken ? countUnreadNotifications(accessToken).then((r) => r.count) : Promise.resolve(0)),
+    [accessToken]
+  );
+  const { data: unreadCount } = usePolling(fetchUnreadCount, 20000, [accessToken]);
 
   function handleLogout() {
     logout();
@@ -49,6 +58,23 @@ export function AppHeader() {
             </Link>
             <Link href="/dm" style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--ink-soft)" }}>
               DM
+            </Link>
+            <Link href="/notifications" style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--ink-soft)", display: "flex", alignItems: "center", gap: 6 }}>
+              알림
+              {!!unreadCount && (
+                <span
+                  style={{
+                    fontSize: "0.7rem",
+                    fontWeight: 700,
+                    color: "var(--on-accent)",
+                    background: "var(--accent)",
+                    borderRadius: 999,
+                    padding: "1px 7px",
+                  }}
+                >
+                  {unreadCount}
+                </span>
+              )}
             </Link>
           </nav>
         )}

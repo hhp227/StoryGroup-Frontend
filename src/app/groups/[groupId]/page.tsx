@@ -51,6 +51,9 @@ export default function GroupDetailPage() {
             <Link className="btn btn-secondary" href={`/groups/${groupId}/meetings`}>
               화상회의
             </Link>
+            <Link className="btn btn-secondary" href={`/groups/${groupId}/files`}>
+              파일
+            </Link>
           </div>
         </div>
       )}
