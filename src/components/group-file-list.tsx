@@ -1,15 +1,22 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
-import { ApiError, deleteFile, getUserIdFromToken, listFiles, uploadFile, type GroupFile } from "@/lib/api";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { ApiError, deleteFile, getUserIdFromToken, listFiles, uploadGroupFile, type GroupFile } from "@/lib/api";
+
+function formatSize(bytes: number | null): string | null {
+  if (bytes === null) return null;
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+}
 
 export function GroupFileList({ token, groupId }: { token: string; groupId: number }) {
   const myUserId = getUserIdFromToken(token);
   const [files, setFiles] = useState<GroupFile[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [name, setName] = useState("");
-  const [url, setUrl] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -19,17 +26,18 @@ export function GroupFileList({ token, groupId }: { token: string; groupId: numb
       .catch((err) => setLoadError(err instanceof ApiError ? err.message : "파일 목록을 불러오지 못했습니다"));
   }, [token, groupId]);
 
-  async function handleAdd(e: FormEvent) {
+  async function handleUpload(e: FormEvent) {
     e.preventDefault();
+    if (!selectedFile) return;
     setFormError(null);
     setIsSubmitting(true);
     try {
-      const created = await uploadFile(token, groupId, name, url);
+      const created = await uploadGroupFile(token, groupId, selectedFile);
       setFiles((prev) => [created, ...(prev ?? [])]);
-      setName("");
-      setUrl("");
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "파일 등록에 실패했습니다");
+      setFormError(err instanceof ApiError ? err.message : "업로드에 실패했습니다");
     } finally {
       setIsSubmitting(false);
     }
@@ -47,18 +55,20 @@ export function GroupFileList({ token, groupId }: { token: string; groupId: numb
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-5)" }}>
-      <form onSubmit={handleAdd} className="card" style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
+      <form onSubmit={handleUpload} className="card" style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
         <div className="field">
-          <label htmlFor="file-name">파일 이름</label>
-          <input id="file-name" type="text" required maxLength={255} value={name} onChange={(e) => setName(e.target.value)} />
-        </div>
-        <div className="field">
-          <label htmlFor="file-url">파일 URL</label>
-          <input id="file-url" type="url" required maxLength={500} value={url} onChange={(e) => setUrl(e.target.value)} />
+          <label htmlFor="file-input">파일 선택 (최대 20MB)</label>
+          <input
+            id="file-input"
+            ref={fileInputRef}
+            type="file"
+            required
+            onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
+          />
         </div>
         {formError && <p className="field-error">{formError}</p>}
-        <button className="btn btn-primary" type="submit" disabled={isSubmitting} style={{ alignSelf: "flex-start" }}>
-          공유하기
+        <button className="btn btn-primary" type="submit" disabled={isSubmitting || !selectedFile} style={{ alignSelf: "flex-start" }}>
+          {isSubmitting ? "업로드 중..." : "업로드"}
         </button>
       </form>
 
@@ -72,7 +82,9 @@ export function GroupFileList({ token, groupId }: { token: string; groupId: numb
               {file.name}
             </a>
             <span style={{ fontSize: "0.75rem", color: "var(--ink-faint)" }}>
-              {file.authorName} · {new Date(file.createdAt).toLocaleString("ko-KR")}
+              {[file.authorName, formatSize(file.size), new Date(file.createdAt).toLocaleString("ko-KR")]
+                .filter(Boolean)
+                .join(" · ")}
             </span>
           </div>
           {file.userId === myUserId && (

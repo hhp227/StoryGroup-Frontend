@@ -17,10 +17,12 @@ interface RequestOptions extends RequestInit {
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { token, headers, ...rest } = options;
+  // FormData는 브라우저가 multipart boundary를 포함한 Content-Type을 직접 지정해야 하므로 건드리지 않는다.
+  const isFormData = rest.body instanceof FormData;
   const res = await fetch(`${API_BASE}${path}`, {
     ...rest,
     headers: {
-      "Content-Type": "application/json",
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },
@@ -373,13 +375,23 @@ export function listFiles(token: string, groupId: number, page = 0, size = 20) {
   return request<GroupFile[]>(`/api/groups/${groupId}/files?page=${page}&size=${size}`, { token });
 }
 
-// 백엔드는 실제 바이너리 업로드를 받지 않고 이미 어딘가(추후 Supabase Storage)에 올라간
-// 파일의 메타데이터(이름/URL)만 등록받는다. 그래서 폼도 URL을 직접 입력하는 형태로 둔다.
+// URL 메타데이터만 등록하는 구버전 경로(다른 클라이언트 호환용으로 백엔드에 남아 있음).
 export function uploadFile(token: string, groupId: number, name: string, url: string) {
   return request<GroupFile>(`/api/groups/${groupId}/files`, {
     method: "POST",
     token,
     body: JSON.stringify({ name, url }),
+  });
+}
+
+// 실제 바이너리 업로드 - 서버가 Supabase Storage에 저장하고 공개 URL 메타데이터를 만들어 돌려준다.
+export function uploadGroupFile(token: string, groupId: number, file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  return request<GroupFile>(`/api/groups/${groupId}/files/upload`, {
+    method: "POST",
+    token,
+    body: form,
   });
 }
 
