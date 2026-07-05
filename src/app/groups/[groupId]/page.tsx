@@ -42,6 +42,9 @@ export default function GroupDetailPage() {
           </div>
           {group.description && <p style={{ color: "var(--ink-soft)", marginTop: "var(--sp-1)" }}>{group.description}</p>}
           <div style={{ display: "flex", gap: "var(--sp-3)", marginTop: "var(--sp-4)" }}>
+            <Link className="btn btn-secondary" href={`/groups/${groupId}/members`}>
+              멤버
+            </Link>
             <Link className="btn btn-secondary" href={`/groups/${groupId}/chat`}>
               채팅
             </Link>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import { listMessages, type ChatMessage } from "@/lib/api";
+import type { ChatMessage } from "@/lib/api";
 import { usePolling } from "./use-polling";
 
 // 내용이 안 바뀐 메시지는 이전 객체 참조를 그대로 재사용한다 — ChatThread의 MessageBubble이
@@ -15,12 +15,10 @@ function mergeMessages(prev: ChatMessage[] | null, next: ChatMessage[]): ChatMes
   });
 }
 
-export function useMessagePolling(token: string, groupId: number, chatRoomId: number, intervalMs = 4000) {
-  const fetchPage = useCallback(
-    () => listMessages(token, groupId, chatRoomId).then((page) => [...page].reverse()),
-    [token, groupId, chatRoomId]
-  );
-  const { data, error, setData } = usePolling(fetchPage, intervalMs, [token, groupId, chatRoomId], mergeMessages);
+// fetchPage는 그룹 채팅(/api/groups/{groupId}/chat-rooms/{chatRoomId}/messages)과
+// DM(/api/dm/{chatRoomId}/messages) 양쪽에서 호출부가 각자의 엔드포인트로 바인딩해 넘긴다.
+export function useMessagePolling(fetchPage: () => Promise<ChatMessage[]>, deps: unknown[], intervalMs = 4000) {
+  const { data, error, setData } = usePolling(fetchPage, intervalMs, deps, mergeMessages);
 
   const appendLocal = useCallback((message: ChatMessage) => {
     setData((prev) => (prev ? [...prev, message] : [message]));

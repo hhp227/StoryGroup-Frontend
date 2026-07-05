@@ -255,6 +255,54 @@ export interface Participant {
   leftAt: string | null;
 }
 
+export interface Member {
+  userId: number;
+  name: string;
+  profileImg: string | null;
+  role: GroupRole;
+  joinedAt: string;
+}
+
+export function listMembers(token: string, groupId: number) {
+  return request<Member[]>(`/api/groups/${groupId}/members`, { token });
+}
+
+export interface DirectRoom {
+  id: number;
+  otherUserId: number;
+  otherUserName: string;
+  otherUserProfileImg: string | null;
+  createdAt: string;
+}
+
+export function listDirectRooms(token: string) {
+  return request<DirectRoom[]>("/api/dm", { token });
+}
+
+export function getOrCreateDirectRoom(token: string, otherUserId: number) {
+  return request<ChatRoom>(`/api/dm/${otherUserId}`, { method: "POST", token });
+}
+
+// 백엔드는 최신순(DESC)으로 내려준다 — 채팅창 표시는 오래된 순이 자연스러워 호출부에서 뒤집어 쓴다.
+export function listDirectMessages(token: string, chatRoomId: number, page = 0, size = 50) {
+  return request<ChatMessage[]>(`/api/dm/${chatRoomId}/messages?page=${page}&size=${size}`, { token });
+}
+
+export function sendDirectMessage(token: string, chatRoomId: number, text: string) {
+  return request<ChatMessage>(`/api/dm/${chatRoomId}/messages`, {
+    method: "POST",
+    token,
+    body: JSON.stringify({ text }),
+  });
+}
+
+export function deleteDirectMessage(token: string, chatRoomId: number, messageId: number) {
+  return request<void>(`/api/dm/${chatRoomId}/messages/${messageId}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
 export function listMeetings(token: string, groupId: number, page = 0, size = 20) {
   return request<Meeting[]>(`/api/groups/${groupId}/meetings?page=${page}&size=${size}`, { token });
 }

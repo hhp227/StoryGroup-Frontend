@@ -47,6 +47,9 @@ export function AppHeader() {
             <Link href="/groups" style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--ink-soft)" }}>
               그룹
             </Link>
+            <Link href="/dm" style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--ink-soft)" }}>
+              DM
+            </Link>
           </nav>
         )}
       </div>
