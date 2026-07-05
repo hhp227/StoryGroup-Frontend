@@ -460,6 +460,14 @@ export function updateMyProfile(token: string, name: string, profileImg: string 
   });
 }
 
+export function changeMyPassword(token: string, currentPassword: string, newPassword: string) {
+  return request<void>("/api/users/me/password", {
+    method: "PATCH",
+    token,
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+}
+
 export interface GroupSearchResult {
   id: number;
   name: string;
@@ -495,11 +503,19 @@ export interface MessageSearchResult {
   createdAt: string;
 }
 
+export interface UserSearchResult {
+  id: number;
+  name: string;
+  profileImg: string | null;
+  statusMessage: string | null;
+}
+
 export interface SearchResults {
   groups: GroupSearchResult[];
   posts: PostSearchResult[];
   files: FileSearchResult[];
   messages: MessageSearchResult[];
+  users: UserSearchResult[];
 }
 
 export function search(token: string, query: string, limit = 10) {

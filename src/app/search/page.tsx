@@ -4,7 +4,7 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
-import { ApiError, search, type SearchResults } from "@/lib/api";
+import { ApiError, getOrCreateDirectRoom, search, type SearchResults } from "@/lib/api";
 
 export default function SearchPage() {
   const { accessToken, isReady } = useAuth();
@@ -35,12 +35,24 @@ export default function SearchPage() {
     }
   }
 
+  async function handleMessage(userId: number) {
+    if (!accessToken) return;
+    setError(null);
+    try {
+      const room = await getOrCreateDirectRoom(accessToken, userId);
+      router.push(`/dm/${room.id}`);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "DM을 시작하지 못했습니다");
+    }
+  }
+
   const isEmpty =
     results !== null &&
     results.groups.length === 0 &&
     results.posts.length === 0 &&
     results.files.length === 0 &&
-    results.messages.length === 0;
+    results.messages.length === 0 &&
+    results.users.length === 0;
 
   return (
     <div style={{ maxWidth: 640, margin: "0 auto", padding: "var(--sp-6) var(--sp-5)", display: "flex", flexDirection: "column", gap: "var(--sp-5)" }}>
@@ -71,6 +83,25 @@ export default function SearchPage() {
 
       {error && <p className="field-error">{error}</p>}
       {isEmpty && <p style={{ color: "var(--ink-faint)" }}>검색 결과가 없습니다.</p>}
+
+      {results && results.users.length > 0 && (
+        <ResultSection title="사용자">
+          {results.users.map((u) => (
+            <div key={u.id} className="card" style={{ padding: "var(--sp-4)", display: "flex", alignItems: "center", gap: "var(--sp-3)" }}>
+              <div className="avatar sm">{u.name.slice(0, 1)}</div>
+              <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+                <span style={{ fontWeight: 700, fontSize: "0.92rem" }}>{u.name}</span>
+                {u.statusMessage && (
+                  <span style={{ fontSize: "0.8rem", color: "var(--ink-soft)" }}>{u.statusMessage}</span>
+                )}
+              </div>
+              <button className="btn btn-secondary" type="button" onClick={() => handleMessage(u.id)}>
+                메시지
+              </button>
+            </div>
+          ))}
+        </ResultSection>
+      )}
 
       {results && results.groups.length > 0 && (
         <ResultSection title="그룹">

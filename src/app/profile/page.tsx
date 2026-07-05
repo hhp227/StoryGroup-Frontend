@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
+import { PasswordForm } from "@/components/password-form";
 import { ProfileForm } from "@/components/profile-form";
 
 export default function ProfilePage() {
@@ -18,6 +19,7 @@ export default function ProfilePage() {
     <div style={{ maxWidth: 480, margin: "0 auto", padding: "var(--sp-6) var(--sp-5)", display: "flex", flexDirection: "column", gap: "var(--sp-5)" }}>
       <h1 style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem" }}>프로필</h1>
       <ProfileForm token={accessToken} />
+      <PasswordForm token={accessToken} />
     </div>
   );
 }
