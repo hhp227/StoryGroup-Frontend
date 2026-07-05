@@ -101,11 +101,11 @@ export function getGroup(token: string, groupId: number) {
   return request<Group>(`/api/groups/${groupId}`, { token });
 }
 
-export function createGroup(token: string, name: string, description: string | null) {
+export function createGroup(token: string, name: string, description: string | null, image: string | null) {
   return request<Group>("/api/groups", {
     method: "POST",
     token,
-    body: JSON.stringify({ name, description }),
+    body: JSON.stringify({ name, description, image }),
   });
 }
 

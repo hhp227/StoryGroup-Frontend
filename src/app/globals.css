@@ -203,6 +203,14 @@ a {
   box-shadow: 0 1px 2px var(--shadow);
 }
 
+.group-card {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.group-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px var(--shadow);
+}
+
 .avatar {
   width: 40px;
   height: 40px;
