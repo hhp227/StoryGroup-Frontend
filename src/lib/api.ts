@@ -109,6 +109,18 @@ export function createGroup(token: string, name: string, description: string | n
   });
 }
 
+export function updateGroup(token: string, groupId: number, name: string, description: string | null, image: string | null) {
+  return request<Group>(`/api/groups/${groupId}`, {
+    method: "PATCH",
+    token,
+    body: JSON.stringify({ name, description, image }),
+  });
+}
+
+export function deleteGroup(token: string, groupId: number) {
+  return request<void>(`/api/groups/${groupId}`, { method: "DELETE", token });
+}
+
 export interface PostImage {
   id: number;
   image: string;

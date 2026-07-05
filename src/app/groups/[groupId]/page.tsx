@@ -48,6 +48,11 @@ export default function GroupDetailPage() {
             <Link className="btn btn-secondary" href={`/groups/${groupId}/chat`}>
               채팅
             </Link>
+            {group.myRole === "OWNER" && (
+              <Link className="btn btn-secondary" href={`/groups/${groupId}/settings`}>
+                설정
+              </Link>
+            )}
           </div>
         </div>
       )}
