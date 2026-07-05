@@ -7,6 +7,8 @@ import {
   ApiError,
   createComment,
   deleteComment,
+  deletePost,
+  getGroup,
   getPost,
   getUserIdFromToken,
   likePost,
@@ -14,6 +16,7 @@ import {
   listLikes,
   unlikePost,
   type Comment,
+  type Group,
   type Like,
   type Post,
 } from "@/lib/api";
@@ -26,12 +29,15 @@ export default function PostDetailPage() {
   const postId = Number(params.postId);
 
   const [post, setPost] = useState<Post | null>(null);
+  const [group, setGroup] = useState<Group | null>(null);
   const [likes, setLikes] = useState<Like[] | null>(null);
   const [comments, setComments] = useState<Comment[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [isDeletingPost, setIsDeletingPost] = useState(false);
 
   const myUserId = accessToken ? getUserIdFromToken(accessToken) : null;
   const iLiked = likes?.some((l) => l.userId === myUserId) ?? false;
+  const isOwner = group?.myRole === "OWNER";
 
   useEffect(() => {
     if (!isReady) return;
@@ -41,11 +47,13 @@ export default function PostDetailPage() {
     }
     Promise.all([
       getPost(accessToken, groupId, postId),
+      getGroup(accessToken, groupId),
       listLikes(accessToken, groupId, postId),
       listComments(accessToken, groupId, postId),
     ])
-      .then(([p, l, c]) => {
+      .then(([p, g, l, c]) => {
         setPost(p);
+        setGroup(g);
         setLikes(l);
         setComments(c);
       })
@@ -67,6 +75,18 @@ export default function PostDetailPage() {
     }
   }
 
+  async function handleDeletePost() {
+    if (!accessToken) return;
+    setIsDeletingPost(true);
+    try {
+      await deletePost(accessToken, groupId, postId);
+      router.push(`/groups/${groupId}`);
+    } catch (err) {
+      setLoadError(err instanceof ApiError ? err.message : "게시글 삭제에 실패했습니다");
+      setIsDeletingPost(false);
+    }
+  }
+
   if (!isReady || !accessToken) return null;
 
   return (
@@ -77,12 +97,22 @@ export default function PostDetailPage() {
         <article className="card">
           <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-3)" }}>
             <div className="avatar">{post.authorName.slice(0, 1)}</div>
-            <div style={{ display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
               <span style={{ fontSize: "0.92rem", fontWeight: 700 }}>{post.authorName}</span>
               <span style={{ fontSize: "0.75rem", color: "var(--ink-faint)" }}>
                 {new Date(post.createdAt).toLocaleString("ko-KR")}
               </span>
             </div>
+            {(post.userId === myUserId || isOwner) && (
+              <button
+                type="button"
+                onClick={handleDeletePost}
+                disabled={isDeletingPost}
+                style={{ fontSize: "0.78rem", color: "var(--rust)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+              >
+                삭제
+              </button>
+            )}
           </div>
           <p style={{ fontSize: "0.98rem", lineHeight: 1.6, margin: "var(--sp-4) 0", whiteSpace: "pre-wrap" }}>{post.text}</p>
           {post.images.length > 0 && (
@@ -116,6 +146,7 @@ export default function PostDetailPage() {
           postId={postId}
           comments={comments}
           myUserId={myUserId}
+          isOwner={isOwner}
           onChange={setComments}
         />
       )}
@@ -129,6 +160,7 @@ function CommentSection({
   postId,
   comments,
   myUserId,
+  isOwner,
   onChange,
 }: {
   token: string;
@@ -136,6 +168,7 @@ function CommentSection({
   postId: number;
   comments: Comment[];
   myUserId: number | null;
+  isOwner: boolean;
   onChange: (comments: Comment[]) => void;
 }) {
   const [text, setText] = useState("");
@@ -191,7 +224,7 @@ function CommentSection({
                 답글
               </button>
             )}
-            {comment.userId === myUserId && (
+            {(comment.userId === myUserId || isOwner) && (
               <button
                 type="button"
                 onClick={() => handleDelete(comment.id)}

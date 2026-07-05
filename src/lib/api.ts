@@ -153,6 +153,10 @@ export function getPost(token: string, groupId: number, postId: number) {
   return request<Post>(`/api/groups/${groupId}/posts/${postId}`, { token });
 }
 
+export function deletePost(token: string, groupId: number, postId: number) {
+  return request<void>(`/api/groups/${groupId}/posts/${postId}`, { method: "DELETE", token });
+}
+
 export interface Like {
   userId: number;
   authorName: string;
