@@ -427,6 +427,52 @@ export function updateMyProfile(token: string, name: string, profileImg: string 
   });
 }
 
+export interface GroupSearchResult {
+  id: number;
+  name: string;
+  image: string | null;
+  description: string | null;
+}
+
+export interface PostSearchResult {
+  id: number;
+  groupId: number;
+  groupName: string;
+  authorName: string;
+  text: string;
+  createdAt: string;
+}
+
+export interface FileSearchResult {
+  id: number;
+  groupId: number;
+  groupName: string;
+  name: string;
+  url: string;
+  createdAt: string;
+}
+
+export interface MessageSearchResult {
+  id: number;
+  chatRoomId: number;
+  groupId: number | null;
+  groupName: string | null;
+  authorName: string;
+  text: string;
+  createdAt: string;
+}
+
+export interface SearchResults {
+  groups: GroupSearchResult[];
+  posts: PostSearchResult[];
+  files: FileSearchResult[];
+  messages: MessageSearchResult[];
+}
+
+export function search(token: string, query: string, limit = 10) {
+  return request<SearchResults>(`/api/search?query=${encodeURIComponent(query)}&limit=${limit}`, { token });
+}
+
 // JWT payload는 서버가 서명한 것을 그대로 들고 있는 클라이언트가 읽는 것뿐이라 디코딩만(검증 아님) 해도 안전하다.
 // "좋아요 눌렀는지", "내 댓글인지" 같은 UI 상태 판단에만 쓴다 — 실제 권한 검증은 항상 서버가 한다.
 export function getUserIdFromToken(token: string): number | null {

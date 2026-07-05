@@ -59,6 +59,9 @@ export function AppHeader() {
             <Link href="/dm" style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--ink-soft)" }}>
               DM
             </Link>
+            <Link href="/search" style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--ink-soft)" }}>
+              검색
+            </Link>
             <Link href="/notifications" style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--ink-soft)", display: "flex", alignItems: "center", gap: 6 }}>
               알림
               {!!unreadCount && (
