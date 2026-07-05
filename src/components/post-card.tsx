@@ -7,12 +7,13 @@ export function PostCard({ post }: { post: Post }) {
       <article className="card" style={{ cursor: "pointer" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-3)" }}>
           <div className="avatar">{post.authorName.slice(0, 1)}</div>
-          <div style={{ display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
             <span style={{ fontSize: "0.92rem", fontWeight: 700 }}>{post.authorName}</span>
             <span style={{ fontSize: "0.75rem", color: "var(--ink-faint)" }}>
               {new Date(post.createdAt).toLocaleString("ko-KR")}
             </span>
           </div>
+          {post.isNotice && <span className="chip chip-owner">공지</span>}
         </div>
         <p
           style={{

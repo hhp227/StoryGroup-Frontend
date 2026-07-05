@@ -134,6 +134,7 @@ export interface Post {
   authorProfileImg: string | null;
   text: string;
   images: PostImage[];
+  isNotice: boolean;
   createdAt: string;
 }
 
@@ -155,6 +156,14 @@ export function getPost(token: string, groupId: number, postId: number) {
 
 export function deletePost(token: string, groupId: number, postId: number) {
   return request<void>(`/api/groups/${groupId}/posts/${postId}`, { method: "DELETE", token });
+}
+
+export function setPostNotice(token: string, groupId: number, postId: number) {
+  return request<Post>(`/api/groups/${groupId}/posts/${postId}/notice`, { method: "POST", token });
+}
+
+export function unsetPostNotice(token: string, groupId: number, postId: number) {
+  return request<Post>(`/api/groups/${groupId}/posts/${postId}/notice`, { method: "DELETE", token });
 }
 
 export interface Like {

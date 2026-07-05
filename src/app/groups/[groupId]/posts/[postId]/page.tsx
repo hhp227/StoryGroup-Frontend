@@ -14,7 +14,9 @@ import {
   likePost,
   listComments,
   listLikes,
+  setPostNotice,
   unlikePost,
+  unsetPostNotice,
   type Comment,
   type Group,
   type Like,
@@ -87,6 +89,18 @@ export default function PostDetailPage() {
     }
   }
 
+  async function handleToggleNotice() {
+    if (!accessToken || !post) return;
+    try {
+      const updated = post.isNotice
+        ? await unsetPostNotice(accessToken, groupId, postId)
+        : await setPostNotice(accessToken, groupId, postId);
+      setPost(updated);
+    } catch (err) {
+      setLoadError(err instanceof ApiError ? err.message : "공지 설정에 실패했습니다");
+    }
+  }
+
   if (!isReady || !accessToken) return null;
 
   return (
@@ -103,6 +117,16 @@ export default function PostDetailPage() {
                 {new Date(post.createdAt).toLocaleString("ko-KR")}
               </span>
             </div>
+            {post.isNotice && <span className="chip chip-owner">공지</span>}
+            {isOwner && (
+              <button
+                type="button"
+                onClick={handleToggleNotice}
+                style={{ fontSize: "0.78rem", color: "var(--accent)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+              >
+                {post.isNotice ? "공지 해제" : "공지 등록"}
+              </button>
+            )}
             {(post.userId === myUserId || isOwner) && (
               <button
                 type="button"
