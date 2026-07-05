@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { Group } from "@/lib/api";
+import { roleChipClass, roleLabel } from "@/lib/roles";
 
 // 대표 이미지가 없는 그룹은 단색 대신 그룹마다 다른 색을 골라 카드가 다 똑같아 보이지 않게 한다.
 const COVER_COLORS = ["--accent", "--accent2", "--moss", "--amber"] as const;
@@ -52,10 +53,10 @@ export function GroupCard({ group }: { group: Group }) {
           </span>
         )}
         <span
-          className={`chip ${group.myRole === "OWNER" ? "chip-owner" : "chip-member"}`}
+          className={roleChipClass(group.myRole)}
           style={{ position: "absolute", top: 8, right: 8, background: "var(--linen)" }}
         >
-          {group.myRole === "OWNER" ? "방장" : "멤버"}
+          {roleLabel(group.myRole)}
         </span>
       </div>
 

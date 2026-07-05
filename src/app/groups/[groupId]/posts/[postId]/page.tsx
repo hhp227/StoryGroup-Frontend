@@ -22,6 +22,7 @@ import {
   type Like,
   type Post,
 } from "@/lib/api";
+import { canModerate } from "@/lib/roles";
 
 export default function PostDetailPage() {
   const { accessToken, isReady } = useAuth();
@@ -39,7 +40,7 @@ export default function PostDetailPage() {
 
   const myUserId = accessToken ? getUserIdFromToken(accessToken) : null;
   const iLiked = likes?.some((l) => l.userId === myUserId) ?? false;
-  const isOwner = group?.myRole === "OWNER";
+  const isModerator = canModerate(group?.myRole);
 
   useEffect(() => {
     if (!isReady) return;
@@ -118,7 +119,7 @@ export default function PostDetailPage() {
               </span>
             </div>
             {post.isNotice && <span className="chip chip-owner">공지</span>}
-            {isOwner && (
+            {isModerator && (
               <button
                 type="button"
                 onClick={handleToggleNotice}
@@ -127,7 +128,7 @@ export default function PostDetailPage() {
                 {post.isNotice ? "공지 해제" : "공지 등록"}
               </button>
             )}
-            {(post.userId === myUserId || isOwner) && (
+            {(post.userId === myUserId || isModerator) && (
               <button
                 type="button"
                 onClick={handleDeletePost}
@@ -170,7 +171,7 @@ export default function PostDetailPage() {
           postId={postId}
           comments={comments}
           myUserId={myUserId}
-          isOwner={isOwner}
+          isModerator={isModerator}
           onChange={setComments}
         />
       )}
@@ -184,7 +185,7 @@ function CommentSection({
   postId,
   comments,
   myUserId,
-  isOwner,
+  isModerator,
   onChange,
 }: {
   token: string;
@@ -192,7 +193,7 @@ function CommentSection({
   postId: number;
   comments: Comment[];
   myUserId: number | null;
-  isOwner: boolean;
+  isModerator: boolean;
   onChange: (comments: Comment[]) => void;
 }) {
   const [text, setText] = useState("");
@@ -248,7 +249,7 @@ function CommentSection({
                 답글
               </button>
             )}
-            {(comment.userId === myUserId || isOwner) && (
+            {(comment.userId === myUserId || isModerator) && (
               <button
                 type="button"
                 onClick={() => handleDelete(comment.id)}

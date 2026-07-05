@@ -241,6 +241,10 @@ a {
   background: var(--accent-soft);
   color: var(--accent);
 }
+.chip-admin {
+  background: var(--accent2-soft);
+  color: var(--accent2);
+}
 .chip-member {
   background: var(--stone-border);
   color: var(--ink-soft);

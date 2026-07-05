@@ -82,7 +82,7 @@ export function loginUser(email: string, password: string) {
 }
 
 export type GroupJoinType = "PRIVATE" | "INVITE_ONLY";
-export type GroupRole = "OWNER" | "MEMBER";
+export type GroupRole = "OWNER" | "ADMIN" | "MEMBER";
 
 export interface Group {
   id: number;
@@ -292,6 +292,18 @@ export interface Member {
 
 export function listMembers(token: string, groupId: number) {
   return request<Member[]>(`/api/groups/${groupId}/members`, { token });
+}
+
+export function kickMember(token: string, groupId: number, userId: number) {
+  return request<void>(`/api/groups/${groupId}/members/${userId}`, { method: "DELETE", token });
+}
+
+export function updateMemberRole(token: string, groupId: number, userId: number, role: GroupRole) {
+  return request<void>(`/api/groups/${groupId}/members/${userId}/role`, {
+    method: "PATCH",
+    token,
+    body: JSON.stringify({ role }),
+  });
 }
 
 export interface DirectRoom {

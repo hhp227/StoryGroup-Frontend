@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
 import { GroupPostFeed } from "@/components/group-post-feed";
 import { ApiError, getGroup, type Group } from "@/lib/api";
+import { roleChipClass, roleLabel } from "@/lib/roles";
 
 export default function GroupDetailPage() {
   const { accessToken, isReady } = useAuth();
@@ -36,9 +37,7 @@ export default function GroupDetailPage() {
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-3)" }}>
             <h1 style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem" }}>{group.name}</h1>
-            <span className={`chip ${group.myRole === "OWNER" ? "chip-owner" : "chip-member"}`}>
-              {group.myRole === "OWNER" ? "방장" : "멤버"}
-            </span>
+            <span className={roleChipClass(group.myRole)}>{roleLabel(group.myRole)}</span>
           </div>
           {group.description && <p style={{ color: "var(--ink-soft)", marginTop: "var(--sp-1)" }}>{group.description}</p>}
           <div style={{ display: "flex", gap: "var(--sp-3)", marginTop: "var(--sp-4)" }}>
