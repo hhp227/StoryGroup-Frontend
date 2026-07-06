@@ -60,6 +60,8 @@ export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, onSe
   const [sendError, setSendError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [typists, setTypists] = useState<{ id: number; name: string }[]>([]);
+  // 나 말고 지금 이 방을 보고 있는 사람들(PRESENCE 전체 목록에서 나를 뺀 것). null이면 아직 미수신.
+  const [viewers, setViewers] = useState<{ userId: number; userName: string }[] | null>(null);
   const typingTimersRef = useRef(new Map<number, ReturnType<typeof setTimeout>>());
   const lastTypingSentRef = useRef(0);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -108,6 +110,10 @@ export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, onSe
 
   const handleEvent = useCallback(
     (event: ChatSocketEvent) => {
+      if (event.type === "PRESENCE") {
+        setViewers((event.users ?? []).filter((u) => u.userId !== myUserId));
+        return;
+      }
       if (event.type === "TYPING") {
         // 내 신호도 토픽으로 되돌아오므로 걸러낸다.
         if (event.userId != null && event.userId !== myUserId && event.userName) {
@@ -193,6 +199,11 @@ export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, onSe
       )}
       {socketStatus === "connecting" && messages !== null && (
         <p style={{ fontSize: "0.78rem", color: "var(--ink-faint)" }}>실시간 연결 대기 중... 재연결되면 자동으로 이어집니다.</p>
+      )}
+      {viewers !== null && viewers.length > 0 && (
+        <p style={{ fontSize: "0.78rem", color: "var(--ink-faint)", margin: 0 }}>
+          {viewers.map((v) => v.userName).join(", ")}님이 지금 이 방을 보고 있어요
+        </p>
       )}
       <div className="chat-thread" style={{ maxHeight: "60vh", overflowY: "auto", padding: "var(--sp-2)" }}>
         {messages === null && !loadError && <p style={{ color: "var(--ink-faint)" }}>불러오는 중...</p>}
