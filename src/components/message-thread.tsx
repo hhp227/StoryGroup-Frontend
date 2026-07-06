@@ -1,9 +1,50 @@
 "use client";
 
 import { memo, useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { ApiError, type ChatMessage, type ReadPosition } from "@/lib/api";
+import { ApiError, uploadChatFile, type ChatMessage, type MessageAttachment, type ReadPosition } from "@/lib/api";
 import { useChatSocket } from "@/hooks/use-chat-socket";
 import type { ChatSocketEvent } from "@/lib/ws";
+
+function isImageAttachment(attachment: MessageAttachment) {
+  return attachment.contentType?.startsWith("image/") ?? false;
+}
+
+function formatFileSize(bytes: number | null) {
+  if (bytes == null) return "";
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+}
+
+// 말풍선 안 첨부 표시 — 이미지는 인라인(클릭 시 원본 새 탭), 그 외 파일은 다운로드 링크.
+function AttachmentContent({ attachment }: { attachment: MessageAttachment }) {
+  if (isImageAttachment(attachment)) {
+    return (
+      <a href={attachment.url} target="_blank" rel="noreferrer" style={{ display: "block", lineHeight: 0 }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={attachment.url}
+          alt={attachment.name ?? "첨부 이미지"}
+          style={{ maxWidth: 220, maxHeight: 260, borderRadius: 10, objectFit: "cover" }}
+        />
+      </a>
+    );
+  }
+  return (
+    <a
+      href={attachment.url}
+      target="_blank"
+      rel="noreferrer"
+      download={attachment.name ?? undefined}
+      style={{ display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "underline", color: "inherit", wordBreak: "break-all" }}
+    >
+      📄 {attachment.name ?? "파일"}
+      {attachment.size != null && (
+        <span style={{ fontSize: "0.72rem", opacity: 0.75 }}>({formatFileSize(attachment.size)})</span>
+      )}
+    </a>
+  );
+}
 
 const MessageBubble = memo(function MessageBubble({
   message,
@@ -31,7 +72,12 @@ const MessageBubble = memo(function MessageBubble({
               삭제
             </button>
           )}
-          <div className={`bubble ${isMine ? "mine" : "theirs"}`}>{message.text}</div>
+          <div className={`bubble ${isMine ? "mine" : "theirs"}`}>
+            {message.attachment && <AttachmentContent attachment={message.attachment} />}
+            {message.text && (
+              <div style={message.attachment ? { marginTop: 6 } : undefined}>{message.text}</div>
+            )}
+          </div>
         </div>
         {isMine && readCount > 0 && (
           <span style={{ fontSize: "0.66rem", color: "var(--accent)", marginRight: 2 }}>
@@ -58,7 +104,7 @@ export interface MessageThreadProps {
   myUserId: number | null;
   fetchMessages: () => Promise<ChatMessage[]>;
   fetchReads: () => Promise<ReadPosition[]>;
-  onSend: (text: string) => Promise<ChatMessage>;
+  onSend: (text: string, attachment?: MessageAttachment) => Promise<ChatMessage>;
   onDelete: (messageId: number) => Promise<void>;
   onMarkRead: (lastReadMessageId: number) => Promise<void>;
 }
@@ -71,6 +117,11 @@ export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, fetc
   const [text, setText] = useState("");
   const [sendError, setSendError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
+  // 전송 대기 중인 첨부 파일 — 업로드는 고르는 시점이 아니라 전송 시점에 한다
+  // (보내기 전에 마음을 바꾸면 스토리지에 고아 객체가 남지 않도록).
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingPreviewUrl, setPendingPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [typists, setTypists] = useState<{ id: number; name: string }[]>([]);
   // 나 말고 지금 이 방을 보고 있는 사람들(PRESENCE 전체 목록에서 나를 뺀 것). null이면 아직 미수신.
   const [viewers, setViewers] = useState<{ userId: number; userName: string }[] | null>(null);
@@ -212,15 +263,45 @@ export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, fetc
     bottomRef.current?.scrollIntoView({ block: "end" });
   }, [messages?.length]);
 
+  function selectFile(file: File | undefined) {
+    if (!file) return;
+    setPendingPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return file.type.startsWith("image/") ? URL.createObjectURL(file) : null;
+    });
+    setPendingFile(file);
+  }
+
+  const clearPendingFile = useCallback(() => {
+    setPendingPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setPendingFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, []);
+
+  // 방 이동 등으로 언마운트되면 미리보기 object URL을 정리한다.
+  useEffect(() => () => {
+    setPendingPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+  }, []);
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (!text.trim() && !pendingFile) return;
     setSendError(null);
     setIsSending(true);
     try {
-      const created = await onSend(text);
+      // 첨부는 전송 시점에 업로드 — 실패하면 파일을 유지한 채 에러만 보여 재시도할 수 있다.
+      const attachment = pendingFile ? await uploadChatFile(token, pendingFile) : undefined;
+      const created = await onSend(text, attachment);
       // WS 이벤트가 먼저 도착해 이미 목록에 있을 수 있다.
       setMessages((prev) => (prev ? (prev.some((m) => m.id === created.id) ? prev : [...prev, created]) : [created]));
       setText("");
+      clearPendingFile();
     } catch (err) {
       setSendError(err instanceof ApiError ? err.message : "메시지 전송에 실패했습니다");
     } finally {
@@ -281,11 +362,66 @@ export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, fetc
         </p>
       )}
 
+      {pendingFile && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "var(--sp-2)",
+            padding: "var(--sp-2)",
+            borderRadius: 10,
+            border: "1px solid var(--stone-border)",
+            background: "var(--linen)",
+            alignSelf: "flex-start",
+          }}
+        >
+          {pendingPreviewUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={pendingPreviewUrl}
+              alt=""
+              style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 8 }}
+            />
+          ) : (
+            <span style={{ fontSize: "1.2rem" }}>📄</span>
+          )}
+          <span style={{ fontSize: "0.8rem", color: "var(--ink-soft)", wordBreak: "break-all" }}>
+            {pendingFile.name} <span style={{ color: "var(--ink-faint)" }}>({formatFileSize(pendingFile.size)})</span>
+          </span>
+          <button
+            type="button"
+            onClick={clearPendingFile}
+            disabled={isSending}
+            aria-label="첨부 취소"
+            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-faint)", fontSize: "0.9rem", padding: 2 }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} style={{ display: "flex", gap: "var(--sp-2)" }}>
         <input
+          ref={fileInputRef}
+          type="file"
+          hidden
+          onChange={(e) => selectFile(e.target.files?.[0])}
+        />
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isSending}
+          aria-label="파일 첨부"
+          title="파일 첨부"
+          style={{ padding: "0 var(--sp-3)" }}
+        >
+          📎
+        </button>
+        <input
           type="text"
-          required
-          placeholder="메시지 보내기..."
+          required={!pendingFile}
+          placeholder={pendingFile ? "메시지 (선택)..." : "메시지 보내기..."}
           value={text}
           onChange={(e) => handleTextChange(e.target.value)}
           style={{
@@ -300,7 +436,7 @@ export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, fetc
           }}
         />
         <button className="btn btn-primary" type="submit" disabled={isSending}>
-          전송
+          {isSending && pendingFile ? "업로드 중..." : "전송"}
         </button>
       </form>
       {sendError && <p className="field-error">{sendError}</p>}

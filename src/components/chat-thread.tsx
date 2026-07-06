@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import { deleteMessage, getUserIdFromToken, listChatReads, listMessages, markChatRead, sendMessage } from "@/lib/api";
+import { deleteMessage, getUserIdFromToken, listChatReads, listMessages, markChatRead, sendMessage, type MessageAttachment } from "@/lib/api";
 import { MessageThread } from "@/components/message-thread";
 
 export function ChatThread({ token, groupId, chatRoomId }: { token: string; groupId: number; chatRoomId: number }) {
@@ -12,7 +12,7 @@ export function ChatThread({ token, groupId, chatRoomId }: { token: string; grou
     [token, groupId, chatRoomId]
   );
   const onSend = useCallback(
-    (text: string) => sendMessage(token, groupId, chatRoomId, text),
+    (text: string, attachment?: MessageAttachment) => sendMessage(token, groupId, chatRoomId, text, attachment),
     [token, groupId, chatRoomId]
   );
   const onDelete = useCallback(

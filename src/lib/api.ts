@@ -252,6 +252,14 @@ export function createChatRoom(token: string, groupId: number, name: string) {
   });
 }
 
+// 메시지 첨부(이미지/파일) — 메시지당 1개. url은 업로드 API가 돌려준 공개 URL.
+export interface MessageAttachment {
+  url: string;
+  name: string | null;
+  contentType: string | null;
+  size: number | null;
+}
+
 export interface ChatMessage {
   id: number;
   chatRoomId: number;
@@ -259,6 +267,7 @@ export interface ChatMessage {
   authorName: string;
   authorProfileImg: string | null;
   text: string;
+  attachment: MessageAttachment | null;
   createdAt: string;
 }
 
@@ -267,11 +276,11 @@ export function listMessages(token: string, groupId: number, chatRoomId: number,
   return request<ChatMessage[]>(`/api/groups/${groupId}/chat-rooms/${chatRoomId}/messages?page=${page}&size=${size}`, { token });
 }
 
-export function sendMessage(token: string, groupId: number, chatRoomId: number, text: string) {
+export function sendMessage(token: string, groupId: number, chatRoomId: number, text: string, attachment?: MessageAttachment) {
   return request<ChatMessage>(`/api/groups/${groupId}/chat-rooms/${chatRoomId}/messages`, {
     method: "POST",
     token,
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, attachment }),
   });
 }
 
@@ -361,11 +370,11 @@ export function listDirectMessages(token: string, chatRoomId: number, page = 0, 
   return request<ChatMessage[]>(`/api/dm/${chatRoomId}/messages?page=${page}&size=${size}`, { token });
 }
 
-export function sendDirectMessage(token: string, chatRoomId: number, text: string) {
+export function sendDirectMessage(token: string, chatRoomId: number, text: string, attachment?: MessageAttachment) {
   return request<ChatMessage>(`/api/dm/${chatRoomId}/messages`, {
     method: "POST",
     token,
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, attachment }),
   });
 }
 
@@ -448,6 +457,14 @@ export function uploadImage(token: string, file: File) {
   const form = new FormData();
   form.append("file", file);
   return request<{ url: string }>("/api/images", { method: "POST", token, body: form });
+}
+
+// 일반 파일 범용 업로드(/api/images의 파일판, MIME 제한 없음) — 채팅 첨부용.
+// 응답 필드가 MessageAttachment와 같은 모양이라 그대로 메시지 전송에 넣으면 된다.
+export function uploadChatFile(token: string, file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  return request<MessageAttachment>("/api/files", { method: "POST", token, body: form });
 }
 
 // 실제 바이너리 업로드 - 서버가 Supabase Storage에 저장하고 공개 URL 메타데이터를 만들어 돌려준다.
