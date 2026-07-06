@@ -42,3 +42,54 @@ export interface NotificationSocketEvent {
   type: "NOTIFICATION";
   notification: AppNotification;
 }
+
+// ---- WebRTC 시그널링 (Phase 7) ----
+// 그룹 회의(meetings/{id})와 DM 통화(chat-rooms/{id})가 같은 destination 체계를 쓴다.
+
+export type RtcRoomKind = "meetings" | "chat-rooms";
+
+export interface RtcPeer {
+  userId: number;
+  userName: string;
+}
+
+// 통화방 토픽으로 오는 로스터 — 증분이 아니라 항상 전체 목록(자가 복구).
+export interface RtcPeersEvent {
+  type: "PEERS";
+  roomKey: string;
+  peers: RtcPeer[];
+}
+
+// 개인 큐(/user/queue/rtc)로 오는 표적 시그널. payload는 SDP/ICE JSON 문자열.
+export interface RtcSignalEvent {
+  type: "OFFER" | "ANSWER" | "ICE";
+  roomKey: string;
+  fromUserId: number;
+  fromUserName: string;
+  payload: string;
+}
+
+// DM 통화 벨울림 — 알림 큐(NOTIFICATIONS_DESTINATION)로 오며 type으로 구분된다(휘발성, DB 알림 아님).
+export interface CallInviteEvent {
+  type: "CALL_INVITE";
+  chatRoomId: number;
+  fromUserId: number;
+  fromUserName: string;
+}
+
+// 알림 큐에 실려 오는 이벤트의 합집합 — 수신 훅이 type으로 분기한다.
+export type NotificationQueueEvent = NotificationSocketEvent | CallInviteEvent;
+
+export const RTC_QUEUE_DESTINATION = "/user/queue/rtc";
+
+export function rtcRoomTopic(kind: RtcRoomKind, id: number): string {
+  return `/topic/rtc/${kind}/${id}`;
+}
+
+export function rtcSignalDestination(kind: RtcRoomKind, id: number): string {
+  return `/app/rtc/${kind}/${id}/signal`;
+}
+
+export function rtcInviteDestination(chatRoomId: number): string {
+  return `/app/rtc/chat-rooms/${chatRoomId}/invite`;
+}
