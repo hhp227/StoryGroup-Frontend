@@ -35,6 +35,11 @@ const MessageBubble = memo(function MessageBubble({
   );
 });
 
+// 입력 중 신호는 이 간격으로만 보내고(연타 방지), 받는 쪽은 마지막 신호 후 HIDE 시간이 지나면
+// 표시를 지운다. 보내는 간격 < 지우는 시간이어야 계속 입력 중일 때 표시가 깜빡이지 않는다.
+const TYPING_SEND_INTERVAL_MS = 2500;
+const TYPING_HIDE_MS = 4000;
+
 // 그룹 채팅(ChatThread)과 DM(DirectMessageThread)이 공유하는 렌더링 로직.
 // 실시간 수신은 WebSocket/STOMP(useChatSocket)로 받고, REST는 쓰기(전송/삭제)와
 // (재)연결 시 히스토리 재조회에만 쓴다 — 4초 폴링(useMessagePolling)은 제거됨.
@@ -54,6 +59,9 @@ export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, onSe
   const [text, setText] = useState("");
   const [sendError, setSendError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [typists, setTypists] = useState<{ id: number; name: string }[]>([]);
+  const typingTimersRef = useRef(new Map<number, ReturnType<typeof setTimeout>>());
+  const lastTypingSentRef = useRef(0);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const fetchRef = useRef(fetchMessages);
@@ -72,28 +80,77 @@ export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, onSe
     }
   }, []);
 
-  const handleEvent = useCallback((event: ChatSocketEvent) => {
-    setMessages((prev) => {
-      if (!prev) return prev; // 초기 로드 전이면 곧 refresh 결과에 포함된다
-      switch (event.type) {
-        case "MESSAGE_CREATED": {
-          const created = event.message;
-          // 내가 보낸 메시지는 REST 응답으로 이미 추가돼 있을 수 있어 id로 dedupe.
-          if (!created || prev.some((m) => m.id === created.id)) return prev;
-          return [...prev, created];
-        }
-        case "MESSAGE_UPDATED": {
-          const updated = event.message;
-          if (!updated) return prev;
-          return prev.map((m) => (m.id === updated.id ? updated : m));
-        }
-        case "MESSAGE_DELETED":
-          return prev.filter((m) => m.id !== event.messageId);
-      }
-    });
+  // userId의 입력 중 표시를 켜고, 마지막 신호 후 TYPING_HIDE_MS가 지나면 자동으로 끈다.
+  const noteTyping = useCallback((userId: number, userName: string) => {
+    setTypists((prev) => (prev.some((t) => t.id === userId) ? prev : [...prev, { id: userId, name: userName }]));
+    const timers = typingTimersRef.current;
+    clearTimeout(timers.get(userId));
+    timers.set(
+      userId,
+      setTimeout(() => {
+        timers.delete(userId);
+        setTypists((prev) => prev.filter((t) => t.id !== userId));
+      }, TYPING_HIDE_MS)
+    );
   }, []);
 
-  const socketStatus = useChatSocket(token, chatRoomId, refresh, handleEvent);
+  const clearTypist = useCallback((userId: number) => {
+    const timers = typingTimersRef.current;
+    clearTimeout(timers.get(userId));
+    timers.delete(userId);
+    setTypists((prev) => (prev.some((t) => t.id === userId) ? prev.filter((t) => t.id !== userId) : prev));
+  }, []);
+
+  useEffect(() => {
+    const timers = typingTimersRef.current;
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
+  const handleEvent = useCallback(
+    (event: ChatSocketEvent) => {
+      if (event.type === "TYPING") {
+        // 내 신호도 토픽으로 되돌아오므로 걸러낸다.
+        if (event.userId != null && event.userId !== myUserId && event.userName) {
+          noteTyping(event.userId, event.userName);
+        }
+        return;
+      }
+      // 입력 중이던 사람의 메시지가 도착하면 표시를 바로 지운다(타이머 만료를 기다리지 않음).
+      if (event.type === "MESSAGE_CREATED" && event.message) clearTypist(event.message.userId);
+      setMessages((prev) => {
+        if (!prev) return prev; // 초기 로드 전이면 곧 refresh 결과에 포함된다
+        switch (event.type) {
+          case "MESSAGE_CREATED": {
+            const created = event.message;
+            // 내가 보낸 메시지는 REST 응답으로 이미 추가돼 있을 수 있어 id로 dedupe.
+            if (!created || prev.some((m) => m.id === created.id)) return prev;
+            return [...prev, created];
+          }
+          case "MESSAGE_UPDATED": {
+            const updated = event.message;
+            if (!updated) return prev;
+            return prev.map((m) => (m.id === updated.id ? updated : m));
+          }
+          case "MESSAGE_DELETED":
+            return prev.filter((m) => m.id !== event.messageId);
+          default:
+            return prev;
+        }
+      });
+    },
+    [myUserId, noteTyping, clearTypist]
+  );
+
+  const { status: socketStatus, sendTyping } = useChatSocket(token, chatRoomId, refresh, handleEvent);
+
+  function handleTextChange(value: string) {
+    setText(value);
+    const now = Date.now();
+    if (value && now - lastTypingSentRef.current >= TYPING_SEND_INTERVAL_MS) {
+      lastTypingSentRef.current = now;
+      sendTyping();
+    }
+  }
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
@@ -146,13 +203,19 @@ export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, onSe
         <div ref={bottomRef} />
       </div>
 
+      {typists.length > 0 && (
+        <p style={{ fontSize: "0.78rem", color: "var(--ink-faint)", margin: 0 }}>
+          {typists.map((t) => t.name).join(", ")}님이 입력 중...
+        </p>
+      )}
+
       <form onSubmit={handleSubmit} style={{ display: "flex", gap: "var(--sp-2)" }}>
         <input
           type="text"
           required
           placeholder="메시지 보내기..."
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => handleTextChange(e.target.value)}
           style={{
             flex: 1,
             fontFamily: "var(--font-body)",

@@ -1,10 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Client } from "@stomp/stompjs";
-import { chatRoomTopic, wsUrl, type ChatSocketEvent } from "@/lib/ws";
+import { chatRoomTopic, typingDestination, wsUrl, type ChatSocketEvent } from "@/lib/ws";
 
 export type SocketStatus = "connecting" | "connected" | "error";
+
+export interface ChatSocket {
+  status: SocketStatus;
+  // 연결돼 있을 때만 typing 신호를 보낸다(끊겨 있으면 조용히 무시 — 휘발성 신호라 재전송 불필요).
+  sendTyping: () => void;
+}
 
 // 채팅방 하나에 대한 STOMP 연결/구독 수명주기 훅.
 // - 인증은 CONNECT 프레임의 Authorization 헤더로(백엔드 StompAuthChannelInterceptor).
@@ -19,8 +25,9 @@ export function useChatSocket(
   chatRoomId: number,
   onConnect: () => void,
   onEvent: (event: ChatSocketEvent) => void
-): SocketStatus {
+): ChatSocket {
   const [status, setStatus] = useState<SocketStatus>("connecting");
+  const clientRef = useRef<Client | null>(null);
   // 콜백은 매 렌더 새 클로저지만 연결을 재시작할 이유는 아니므로 ref로만 최신화(usePolling과 같은 패턴).
   const onConnectRef = useRef(onConnect);
   const onEventRef = useRef(onEvent);
@@ -51,10 +58,17 @@ export function useChatSocket(
       },
     });
     client.activate();
+    clientRef.current = client;
     return () => {
+      clientRef.current = null;
       client.deactivate();
     };
   }, [token, chatRoomId]);
 
-  return status;
+  const sendTyping = useCallback(() => {
+    const client = clientRef.current;
+    if (client?.connected) client.publish({ destination: typingDestination(chatRoomId), body: "" });
+  }, [chatRoomId]);
+
+  return { status, sendTyping };
 }
