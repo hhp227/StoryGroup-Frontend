@@ -1,17 +1,20 @@
 "use client";
 
 import { memo, useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { ApiError, type ChatMessage } from "@/lib/api";
+import { ApiError, type ChatMessage, type ReadPosition } from "@/lib/api";
 import { useChatSocket } from "@/hooks/use-chat-socket";
 import type { ChatSocketEvent } from "@/lib/ws";
 
 const MessageBubble = memo(function MessageBubble({
   message,
   isMine,
+  readCount,
   onDelete,
 }: {
   message: ChatMessage;
   isMine: boolean;
+  // 나 말고 이 메시지까지 읽은 사람 수 — 내 메시지에만 의미 있음(그 외엔 0으로 옴).
+  readCount: number;
   onDelete: (id: number) => void;
 }) {
   return (
@@ -30,6 +33,11 @@ const MessageBubble = memo(function MessageBubble({
           )}
           <div className={`bubble ${isMine ? "mine" : "theirs"}`}>{message.text}</div>
         </div>
+        {isMine && readCount > 0 && (
+          <span style={{ fontSize: "0.66rem", color: "var(--accent)", marginRight: 2 }}>
+            읽음{readCount > 1 ? ` ${readCount}` : ""}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -49,12 +57,16 @@ export interface MessageThreadProps {
   chatRoomId: number;
   myUserId: number | null;
   fetchMessages: () => Promise<ChatMessage[]>;
+  fetchReads: () => Promise<ReadPosition[]>;
   onSend: (text: string) => Promise<ChatMessage>;
   onDelete: (messageId: number) => Promise<void>;
+  onMarkRead: (lastReadMessageId: number) => Promise<void>;
 }
 
-export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, onSend, onDelete }: MessageThreadProps) {
+export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, fetchReads, onSend, onDelete, onMarkRead }: MessageThreadProps) {
   const [messages, setMessages] = useState<ChatMessage[] | null>(null);
+  // userId -> 그 사람이 마지막으로 읽은 메시지 id.
+  const [reads, setReads] = useState<Record<number, number>>({});
   const [loadError, setLoadError] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [sendError, setSendError] = useState<string | null>(null);
@@ -67,15 +79,20 @@ export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, onSe
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const fetchRef = useRef(fetchMessages);
+  const fetchReadsRef = useRef(fetchReads);
+  const onMarkReadRef = useRef(onMarkRead);
   useEffect(() => {
     fetchRef.current = fetchMessages;
+    fetchReadsRef.current = fetchReads;
+    onMarkReadRef.current = onMarkRead;
   });
 
   // (재)연결 성공 때마다 호출 — 초기 로드와 끊김 구간 복구가 같은 경로.
   const refresh = useCallback(async () => {
     try {
-      const page = await fetchRef.current();
+      const [page, readList] = await Promise.all([fetchRef.current(), fetchReadsRef.current()]);
       setMessages(page);
+      setReads(Object.fromEntries(readList.map((r) => [r.userId, r.lastReadMessageId])));
       setLoadError(null);
     } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : "메시지를 불러오지 못했습니다");
@@ -112,6 +129,13 @@ export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, onSe
     (event: ChatSocketEvent) => {
       if (event.type === "PRESENCE") {
         setViewers((event.users ?? []).filter((u) => u.userId !== myUserId));
+        return;
+      }
+      if (event.type === "READ") {
+        const { userId, messageId } = event;
+        if (userId == null || messageId == null) return;
+        // 백엔드가 단조 증가를 보장하지만, 이벤트 도착 순서가 섞일 수 있어 여기서도 max로만 갱신.
+        setReads((prev) => ((prev[userId] ?? 0) >= messageId ? prev : { ...prev, [userId]: messageId }));
         return;
       }
       if (event.type === "TYPING") {
@@ -158,6 +182,32 @@ export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, onSe
     }
   }
 
+  // 탭이 보이는 상태에서 최신 메시지가 갱신되면 읽음 위치를 서버에 보고한다.
+  const latestMessageIdRef = useRef(0);
+  const lastReportedReadRef = useRef(0);
+
+  const reportRead = useCallback(() => {
+    const id = latestMessageIdRef.current;
+    if (!id || document.visibilityState !== "visible" || id <= lastReportedReadRef.current) return;
+    lastReportedReadRef.current = id;
+    onMarkReadRef.current(id).catch(() => {
+      // 실패하면 마커를 되돌려 다음 기회(새 메시지 도착/탭 복귀)에 재시도.
+      lastReportedReadRef.current = 0;
+    });
+  }, []);
+
+  useEffect(() => {
+    const last = messages?.[messages.length - 1];
+    latestMessageIdRef.current = last?.id ?? 0;
+    reportRead();
+  }, [messages, reportRead]);
+
+  // 백그라운드 탭에서 받은 메시지는 읽음 처리하지 않다가, 탭으로 돌아왔을 때 보고한다.
+  useEffect(() => {
+    document.addEventListener("visibilitychange", reportRead);
+    return () => document.removeEventListener("visibilitychange", reportRead);
+  }, [reportRead]);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
   }, [messages?.length]);
@@ -191,6 +241,11 @@ export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, onSe
     [onDelete]
   );
 
+  // 내가 아닌 사람들의 읽음 위치 — 내 메시지 옆 "읽음 n" 계산에 쓴다.
+  const otherReadPositions = Object.entries(reads)
+    .filter(([uid]) => Number(uid) !== myUserId)
+    .map(([, pos]) => pos);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-4)" }}>
       {loadError && <p className="field-error">{loadError}</p>}
@@ -209,7 +264,13 @@ export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, onSe
         {messages === null && !loadError && <p style={{ color: "var(--ink-faint)" }}>불러오는 중...</p>}
         {messages?.length === 0 && <p style={{ color: "var(--ink-faint)" }}>아직 메시지가 없습니다.</p>}
         {messages?.map((m) => (
-          <MessageBubble key={m.id} message={m} isMine={m.userId === myUserId} onDelete={handleDelete} />
+          <MessageBubble
+            key={m.id}
+            message={m}
+            isMine={m.userId === myUserId}
+            readCount={m.userId === myUserId ? otherReadPositions.filter((pos) => pos >= m.id).length : 0}
+            onDelete={handleDelete}
+          />
         ))}
         <div ref={bottomRef} />
       </div>

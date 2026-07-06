@@ -9,9 +9,9 @@ export interface PresenceUser {
 
 // 백엔드 ChatSocketEvent envelope와 1:1 대응.
 // CREATED/UPDATED는 message, DELETED는 messageId, TYPING은 userId/userName,
-// PRESENCE는 users(증분이 아닌 전체 목록)만 채워진다.
+// PRESENCE는 users(증분이 아닌 전체 목록), READ는 userId+messageId(마지막 읽은 위치)가 채워진다.
 export interface ChatSocketEvent {
-  type: "MESSAGE_CREATED" | "MESSAGE_UPDATED" | "MESSAGE_DELETED" | "TYPING" | "PRESENCE";
+  type: "MESSAGE_CREATED" | "MESSAGE_UPDATED" | "MESSAGE_DELETED" | "TYPING" | "PRESENCE" | "READ";
   chatRoomId: number;
   message: ChatMessage | null;
   messageId: number | null;

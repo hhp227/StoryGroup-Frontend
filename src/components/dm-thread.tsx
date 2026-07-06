@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import { deleteDirectMessage, getUserIdFromToken, listDirectMessages, sendDirectMessage } from "@/lib/api";
+import { deleteDirectMessage, getUserIdFromToken, listDirectMessages, listDirectReads, markDirectRead, sendDirectMessage } from "@/lib/api";
 import { MessageThread } from "@/components/message-thread";
 
 export function DirectMessageThread({ token, chatRoomId }: { token: string; chatRoomId: number }) {
@@ -16,6 +16,11 @@ export function DirectMessageThread({ token, chatRoomId }: { token: string; chat
     (messageId: number) => deleteDirectMessage(token, chatRoomId, messageId),
     [token, chatRoomId]
   );
+  const fetchReads = useCallback(() => listDirectReads(token, chatRoomId), [token, chatRoomId]);
+  const onMarkRead = useCallback(
+    (lastReadMessageId: number) => markDirectRead(token, chatRoomId, lastReadMessageId),
+    [token, chatRoomId]
+  );
 
   return (
     <MessageThread
@@ -24,8 +29,10 @@ export function DirectMessageThread({ token, chatRoomId }: { token: string; chat
       chatRoomId={chatRoomId}
       myUserId={myUserId}
       fetchMessages={fetchMessages}
+      fetchReads={fetchReads}
       onSend={onSend}
       onDelete={onDelete}
+      onMarkRead={onMarkRead}
     />
   );
 }

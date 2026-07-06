@@ -266,6 +266,24 @@ export function deleteMessage(token: string, groupId: number, chatRoomId: number
   });
 }
 
+// 방×사용자당 마지막으로 읽은 메시지 위치 — 그 이하 메시지는 전부 읽은 것으로 본다.
+export interface ReadPosition {
+  userId: number;
+  lastReadMessageId: number;
+}
+
+export function markChatRead(token: string, groupId: number, chatRoomId: number, lastReadMessageId: number) {
+  return request<void>(`/api/groups/${groupId}/chat-rooms/${chatRoomId}/read`, {
+    method: "PUT",
+    token,
+    body: JSON.stringify({ lastReadMessageId }),
+  });
+}
+
+export function listChatReads(token: string, groupId: number, chatRoomId: number) {
+  return request<ReadPosition[]>(`/api/groups/${groupId}/chat-rooms/${chatRoomId}/reads`, { token });
+}
+
 export interface Meeting {
   id: number;
   groupId: number;
@@ -340,6 +358,18 @@ export function deleteDirectMessage(token: string, chatRoomId: number, messageId
     method: "DELETE",
     token,
   });
+}
+
+export function markDirectRead(token: string, chatRoomId: number, lastReadMessageId: number) {
+  return request<void>(`/api/dm/${chatRoomId}/read`, {
+    method: "PUT",
+    token,
+    body: JSON.stringify({ lastReadMessageId }),
+  });
+}
+
+export function listDirectReads(token: string, chatRoomId: number) {
+  return request<ReadPosition[]>(`/api/dm/${chatRoomId}/reads`, { token });
 }
 
 export function listMeetings(token: string, groupId: number, page = 0, size = 20) {
