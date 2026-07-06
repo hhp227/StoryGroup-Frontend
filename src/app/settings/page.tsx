@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useAuth } from "@/components/auth-provider";
 import { useTheme, type Mode, type Mood } from "@/components/theme-provider";
 
 // globals.css의 조합별 토큰과 같은 값. 선택 카드에서 "지금 적용 안 된 조합"의 색을 미리 보여주는
@@ -27,6 +29,7 @@ const MODES: { value: Mode; label: string; description: string }[] = [
 
 export default function SettingsPage() {
   const { mood, mode, setMood, setMode } = useTheme();
+  const { accessToken, isReady } = useAuth();
 
   return (
     <div style={{ maxWidth: 480, margin: "0 auto", padding: "var(--sp-6) var(--sp-5)", display: "flex", flexDirection: "column", gap: "var(--sp-5)" }}>
@@ -66,6 +69,21 @@ export default function SettingsPage() {
           ))}
         </OptionGroup>
       </section>
+
+      {/* 개인(계정) 설정 — 로그인한 경우에만. 앞으로 알림 설정 등 개인 옵션이 여기에 추가된다. */}
+      {isReady && accessToken && (
+        <section style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
+          <div>
+            <h2 style={{ fontFamily: "var(--font-display)", fontSize: "1.05rem" }}>계정</h2>
+            <p style={{ fontSize: "0.82rem", color: "var(--ink-faint)", marginTop: 4 }}>
+              프로필과 비밀번호는 프로필 화면에서 관리합니다.
+            </p>
+          </div>
+          <Link className="btn btn-secondary" href="/profile" style={{ alignSelf: "flex-start" }}>
+            프로필 관리
+          </Link>
+        </section>
+      )}
     </div>
   );
 }

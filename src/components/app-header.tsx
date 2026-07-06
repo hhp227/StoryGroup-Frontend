@@ -1,21 +1,36 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { countUnreadNotifications } from "@/lib/api";
-import { usePolling } from "@/hooks/use-polling";
+import { useNotificationSocket } from "@/hooks/use-notification-socket";
 import { useAuth } from "./auth-provider";
 
 export function AppHeader() {
   const { accessToken, isReady, logout } = useAuth();
   const router = useRouter();
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  const fetchUnreadCount = useCallback(
-    () => (accessToken ? countUnreadNotifications(accessToken).then((r) => r.count) : Promise.resolve(0)),
-    [accessToken]
-  );
-  const { data: unreadCount } = usePolling(fetchUnreadCount, 20000, [accessToken]);
+  const refetchUnread = useCallback(() => {
+    if (!accessToken) return;
+    countUnreadNotifications(accessToken)
+      .then((r) => setUnreadCount(r.count))
+      .catch(() => {}); // 배지는 부가 정보라 실패해도 조용히 넘어간다
+  }, [accessToken]);
+
+  // 20초 REST 폴링을 대체: (재)연결 시 REST로 개수 복구 + 이후 개인 큐 이벤트로 증가.
+  useNotificationSocket(accessToken, refetchUnread, () => setUnreadCount((c) => c + 1));
+
+  // 알림 화면에서 읽음 처리하면 그쪽에서 이 이벤트를 쏘고, 여기서 배지를 다시 센다.
+  useEffect(() => {
+    window.addEventListener("sg-notifications-read", refetchUnread);
+    return () => window.removeEventListener("sg-notifications-read", refetchUnread);
+  }, [refetchUnread]);
+
+  useEffect(() => {
+    if (!accessToken) setUnreadCount(0);
+  }, [accessToken]);
 
   function handleLogout() {
     logout();

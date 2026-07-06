@@ -37,6 +37,8 @@ export function NotificationList({ token }: { token: string }) {
     try {
       await markNotificationAsRead(token, id);
       setNotifications((prev) => prev?.map((n) => (n.id === id ? { ...n, isRead: true } : n)) ?? null);
+      // 헤더 배지가 듣고 미확인 개수를 다시 세게 한다(app-header.tsx).
+      window.dispatchEvent(new Event("sg-notifications-read"));
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : "읽음 처리에 실패했습니다");
     }
@@ -47,6 +49,7 @@ export function NotificationList({ token }: { token: string }) {
     try {
       await markAllNotificationsAsRead(token);
       setNotifications((prev) => prev?.map((n) => ({ ...n, isRead: true })) ?? null);
+      window.dispatchEvent(new Event("sg-notifications-read"));
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : "읽음 처리에 실패했습니다");
     }

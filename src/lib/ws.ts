@@ -1,4 +1,4 @@
-import type { ChatMessage } from "./api";
+import type { AppNotification, ChatMessage } from "./api";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -32,4 +32,13 @@ export function chatRoomTopic(chatRoomId: number): string {
 // Typing 신호를 보내는 STOMP SEND destination(백엔드 TypingController).
 export function typingDestination(chatRoomId: number): string {
   return `/app/chat-rooms/${chatRoomId}/typing`;
+}
+
+// 개인 알림 큐 — Spring이 세션별로 해석해 본인 알림만 전달된다.
+export const NOTIFICATIONS_DESTINATION = "/user/queue/notifications";
+
+// 백엔드 NotificationSocketEvent envelope와 1:1 대응.
+export interface NotificationSocketEvent {
+  type: "NOTIFICATION";
+  notification: AppNotification;
 }
