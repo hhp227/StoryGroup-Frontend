@@ -28,9 +28,8 @@ export function AppHeader() {
     return () => window.removeEventListener("sg-notifications-read", refetchUnread);
   }, [refetchUnread]);
 
-  useEffect(() => {
-    if (!accessToken) setUnreadCount(0);
-  }, [accessToken]);
+  // 로그아웃 시 리셋은 불필요 — 배지는 로그인 상태에서만 렌더되고,
+  // 재로그인하면 소켓 (재)연결 시 refetchUnread가 정확한 값으로 다시 채운다.
 
   function handleLogout() {
     logout();

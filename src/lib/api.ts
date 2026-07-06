@@ -81,6 +81,22 @@ export function loginUser(email: string, password: string) {
   });
 }
 
+// 리프레시 토큰은 1회용(rotation) — 성공하면 응답의 새 refreshToken으로 반드시 교체 저장해야 한다.
+export function refreshTokens(refreshToken: string) {
+  return request<TokenResponse>("/api/auth/refresh", {
+    method: "POST",
+    body: JSON.stringify({ refreshToken }),
+  });
+}
+
+// 서버 측 리프레시 토큰 폐기. 로컬 로그아웃과 별개로 호출(실패해도 로컬 로그아웃은 진행).
+export function logoutUser(refreshToken: string) {
+  return request<void>("/api/auth/logout", {
+    method: "POST",
+    body: JSON.stringify({ refreshToken }),
+  });
+}
+
 export type GroupJoinType = "PRIVATE" | "INVITE_ONLY";
 export type GroupRole = "OWNER" | "ADMIN" | "MEMBER";
 
