@@ -3,6 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
 import { DirectMessageThread } from "@/components/dm-thread";
+import { DmCall } from "@/components/dm-call";
 
 export default function DmThreadPage() {
   const { accessToken, isReady } = useAuth();
@@ -17,7 +18,8 @@ export default function DmThreadPage() {
   }
 
   return (
-    <div style={{ maxWidth: 640, margin: "0 auto", padding: "var(--sp-6) var(--sp-5)" }}>
+    <div style={{ maxWidth: 640, margin: "0 auto", padding: "var(--sp-6) var(--sp-5)", display: "flex", flexDirection: "column", gap: "var(--sp-4)" }}>
+      <DmCall key={`call-${chatRoomId}`} token={accessToken} chatRoomId={chatRoomId} />
       <DirectMessageThread key={chatRoomId} token={accessToken} chatRoomId={chatRoomId} />
     </div>
   );
