@@ -442,6 +442,14 @@ export function uploadFile(token: string, groupId: number, name: string, url: st
   });
 }
 
+// 이미지 전용 범용 업로드 - 공개 URL만 돌려받아 게시글(images)/프로필(profileImg)/그룹(image)의
+// 기존 URL 문자열 필드에 그대로 넣는다(API 계약 무변경).
+export function uploadImage(token: string, file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  return request<{ url: string }>("/api/images", { method: "POST", token, body: form });
+}
+
 // 실제 바이너리 업로드 - 서버가 Supabase Storage에 저장하고 공개 URL 메타데이터를 만들어 돌려준다.
 export function uploadGroupFile(token: string, groupId: number, file: File) {
   const form = new FormData();

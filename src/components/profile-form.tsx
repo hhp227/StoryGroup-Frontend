@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { ApiError, getMyProfile, updateMyProfile, type Profile } from "@/lib/api";
+import { ImageUploadField } from "@/components/image-upload-field";
 
 export function ProfileForm({ token }: { token: string }) {
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -72,10 +73,7 @@ export function ProfileForm({ token }: { token: string }) {
         <label htmlFor="profile-bio">소개</label>
         <textarea id="profile-bio" rows={4} maxLength={500} value={bio} onChange={(e) => setBio(e.target.value)} />
       </div>
-      <div className="field">
-        <label htmlFor="profile-img">프로필 이미지 URL</label>
-        <input id="profile-img" type="url" maxLength={255} value={profileImg} onChange={(e) => setProfileImg(e.target.value)} />
-      </div>
+      <ImageUploadField token={token} label="프로필 이미지" value={profileImg} onChange={setProfileImg} />
 
       {formError && <p className="field-error">{formError}</p>}
       {saved && <p style={{ color: "var(--accent)", fontSize: "0.85rem" }}>저장했습니다.</p>}

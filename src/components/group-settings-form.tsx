@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, deleteGroup, getGroup, updateGroup, type Group } from "@/lib/api";
+import { ImageUploadField } from "@/components/image-upload-field";
 
 export function GroupSettingsForm({ token, groupId }: { token: string; groupId: number }) {
   const router = useRouter();
@@ -73,10 +74,7 @@ export function GroupSettingsForm({ token, groupId }: { token: string; groupId: 
           <label htmlFor="group-description">설명</label>
           <textarea id="group-description" rows={3} maxLength={1000} value={description} onChange={(e) => setDescription(e.target.value)} />
         </div>
-        <div className="field">
-          <label htmlFor="group-image">대표 이미지 URL</label>
-          <input id="group-image" type="url" maxLength={255} value={image} onChange={(e) => setImage(e.target.value)} />
-        </div>
+        <ImageUploadField token={token} label="대표 이미지" value={image} onChange={setImage} />
 
         {formError && <p className="field-error">{formError}</p>}
         {saved && <p style={{ color: "var(--accent)", fontSize: "0.85rem" }}>저장했습니다.</p>}

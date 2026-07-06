@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
 import { ApiError, createGroup } from "@/lib/api";
+import { ImageUploadField } from "@/components/image-upload-field";
 
 export default function NewGroupPage() {
   const { accessToken, isReady } = useAuth();
@@ -53,10 +54,7 @@ export default function NewGroupPage() {
           <label htmlFor="group-desc">소개 (선택)</label>
           <input id="group-desc" type="text" maxLength={1000} value={description} onChange={(e) => setDescription(e.target.value)} />
         </div>
-        <div className="field">
-          <label htmlFor="group-image">대표 이미지 URL (선택)</label>
-          <input id="group-image" type="url" maxLength={255} value={image} onChange={(e) => setImage(e.target.value)} />
-        </div>
+        <ImageUploadField token={accessToken} label="대표 이미지 (선택)" value={image} onChange={setImage} />
         {formError && <p className="field-error">{formError}</p>}
         <button className="btn btn-primary" type="submit" disabled={isSubmitting} style={{ alignSelf: "flex-start" }}>
           {isSubmitting ? "만드는 중..." : "그룹 만들기"}
