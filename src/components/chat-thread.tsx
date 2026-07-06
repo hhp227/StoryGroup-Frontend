@@ -22,9 +22,11 @@ export function ChatThread({ token, groupId, chatRoomId }: { token: string; grou
 
   return (
     <MessageThread
+      key={chatRoomId}
+      token={token}
+      chatRoomId={chatRoomId}
       myUserId={myUserId}
       fetchMessages={fetchMessages}
-      deps={[token, groupId, chatRoomId]}
       onSend={onSend}
       onDelete={onDelete}
     />

@@ -19,9 +19,11 @@ export function DirectMessageThread({ token, chatRoomId }: { token: string; chat
 
   return (
     <MessageThread
+      key={chatRoomId}
+      token={token}
+      chatRoomId={chatRoomId}
       myUserId={myUserId}
       fetchMessages={fetchMessages}
-      deps={[token, chatRoomId]}
       onSend={onSend}
       onDelete={onDelete}
     />
