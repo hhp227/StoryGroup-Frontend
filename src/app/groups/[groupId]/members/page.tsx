@@ -17,7 +17,7 @@ export default function GroupMembersPage() {
   }
 
   return (
-    <div style={{ maxWidth: 640, margin: "0 auto", padding: "var(--sp-6) var(--sp-5)", display: "flex", flexDirection: "column", gap: "var(--sp-5)" }}>
+    <div className="container page page-narrow" style={{ display: "flex", flexDirection: "column", gap: "var(--sp-5)" }}>
       <h1 style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem" }}>멤버</h1>
       <GroupMemberList token={accessToken} groupId={groupId} />
     </div>

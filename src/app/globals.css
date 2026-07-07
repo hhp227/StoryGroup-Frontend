@@ -131,6 +131,43 @@ a {
 }
 
 /* ===== 공용 컴포넌트 ===== */
+/* ===== 레이아웃 컨테이너 — 헤더와 모든 페이지가 같은 기준선(960px)과 좌우 여백을 공유한다 ===== */
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding-left: 22px;
+  padding-right: 22px;
+}
+.page {
+  padding-top: var(--sp-6);
+  padding-bottom: var(--sp-7);
+}
+.page-narrow {
+  max-width: 720px; /* 피드/채팅 — 읽기 폭 */
+}
+.page-form {
+  max-width: 460px; /* 로그인/설정 폼 */
+}
+
+/* 헤더 네비 링크 — 버튼에도 쓸 수 있게 리셋 포함 */
+.nav-link {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.15s;
+}
+.nav-link:hover {
+  color: var(--accent);
+}
+
 .btn {
   font-family: var(--font-body);
   font-size: 0.9rem;

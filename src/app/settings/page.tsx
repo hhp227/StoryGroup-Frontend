@@ -32,7 +32,7 @@ export default function SettingsPage() {
   const { accessToken, isReady } = useAuth();
 
   return (
-    <div style={{ maxWidth: 480, margin: "0 auto", padding: "var(--sp-6) var(--sp-5)", display: "flex", flexDirection: "column", gap: "var(--sp-5)" }}>
+    <div className="container page page-form" style={{ display: "flex", flexDirection: "column", gap: "var(--sp-5)" }}>
       <h1 style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem" }}>설정</h1>
 
       <section style={{ display: "flex", flexDirection: "column", gap: "var(--sp-4)" }}>

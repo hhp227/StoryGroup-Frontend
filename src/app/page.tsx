@@ -16,7 +16,7 @@ export default function Home() {
 
 function MarketingLanding() {
   return (
-    <div style={{ maxWidth: 640, margin: "0 auto", padding: "var(--sp-8) var(--sp-5)" }}>
+    <div className="container page page-narrow">
       <h1
         style={{
           fontFamily: "var(--font-display)",
@@ -61,7 +61,7 @@ function LoungeFeed({ token }: { token: string }) {
   }, [token]);
 
   return (
-    <div style={{ maxWidth: 640, margin: "0 auto", padding: "var(--sp-6) var(--sp-5)" }}>
+    <div className="container page page-narrow">
       {loadError && <p className="field-error">{loadError}</p>}
       {loungeGroupId !== null ? (
         <GroupPostFeed key={loungeGroupId} token={token} groupId={loungeGroupId} />

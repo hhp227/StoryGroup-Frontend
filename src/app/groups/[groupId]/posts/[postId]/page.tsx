@@ -105,7 +105,7 @@ export default function PostDetailPage() {
   if (!isReady || !accessToken) return null;
 
   return (
-    <div style={{ maxWidth: 640, margin: "0 auto", padding: "var(--sp-6) var(--sp-5)", display: "flex", flexDirection: "column", gap: "var(--sp-5)" }}>
+    <div className="container page page-narrow" style={{ display: "flex", flexDirection: "column", gap: "var(--sp-5)" }}>
       {loadError && <p className="field-error">{loadError}</p>}
 
       {post && (

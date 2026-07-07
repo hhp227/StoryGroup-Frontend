@@ -30,7 +30,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div style={{ maxWidth: 380, margin: "0 auto", padding: "var(--sp-7) var(--sp-5)" }}>
+    <div className="container page page-form">
       <h1 style={{ fontFamily: "var(--font-display)", fontSize: "1.6rem", marginBottom: "var(--sp-2)" }}>
         같이할 사람들을 위한 자리
       </h1>

@@ -28,7 +28,7 @@ export default function GroupsPage() {
   if (!isReady || !accessToken) return null;
 
   return (
-    <div style={{ maxWidth: 960, margin: "0 auto", padding: "var(--sp-7) var(--sp-5)", display: "flex", flexDirection: "column", gap: "var(--sp-6)" }}>
+    <div className="container page" style={{ display: "flex", flexDirection: "column", gap: "var(--sp-6)" }}>
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: "var(--sp-4)" }}>
         <div>
           <h1 style={{ fontFamily: "var(--font-display)", fontSize: "1.6rem", marginBottom: "var(--sp-2)" }}>

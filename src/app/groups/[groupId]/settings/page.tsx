@@ -17,7 +17,7 @@ export default function GroupSettingsPage() {
   }
 
   return (
-    <div style={{ maxWidth: 480, margin: "0 auto", padding: "var(--sp-6) var(--sp-5)", display: "flex", flexDirection: "column", gap: "var(--sp-5)" }}>
+    <div className="container page page-form" style={{ display: "flex", flexDirection: "column", gap: "var(--sp-5)" }}>
       <h1 style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem" }}>그룹 설정</h1>
       <GroupSettingsForm token={accessToken} groupId={groupId} />
     </div>

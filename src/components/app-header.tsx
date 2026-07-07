@@ -75,13 +75,13 @@ export function AppHeader() {
   return (
     <header
       style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: "var(--sp-4)",
-        padding: "var(--sp-4) var(--sp-5)",
+        position: "sticky",
+        top: 0,
+        zIndex: 100,
         borderBottom: "1px solid var(--stone-border)",
-        background: "var(--linen)",
+        background: "color-mix(in srgb, var(--linen) 88%, transparent)",
+        backdropFilter: "blur(10px)",
+        WebkitBackdropFilter: "blur(10px)",
       }}
     >
       {incomingCall && (
@@ -112,7 +112,16 @@ export function AppHeader() {
           </button>
         </div>
       )}
-      <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-5)" }}>
+      <div
+        className="container"
+        style={{
+          height: 60,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "var(--sp-4)",
+        }}
+      >
         <Link
           href="/"
           style={{
@@ -124,68 +133,71 @@ export function AppHeader() {
         >
           StoryGroup
         </Link>
-        {isReady && accessToken && (
-          <nav style={{ display: "flex", gap: "var(--sp-4)" }}>
-            <Link href="/" style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--ink-soft)" }}>
-              홈
-            </Link>
-            <Link href="/groups" style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--ink-soft)" }}>
-              그룹
-            </Link>
-            <Link href="/dm" style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--ink-soft)" }}>
-              DM
-            </Link>
-            <Link href="/search" style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--ink-soft)" }}>
-              검색
-            </Link>
-            <Link href="/notifications" style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--ink-soft)", display: "flex", alignItems: "center", gap: 6 }}>
-              알림
-              {!!unreadCount && (
-                <span
-                  style={{
-                    fontSize: "0.7rem",
-                    fontWeight: 700,
-                    color: "var(--on-accent)",
-                    background: "var(--accent)",
-                    borderRadius: 999,
-                    padding: "1px 7px",
-                  }}
-                >
-                  {unreadCount}
-                </span>
-              )}
-            </Link>
-          </nav>
-        )}
-      </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-4)" }}>
-        {/* 테마 전환 UI는 /settings로 이동 — 헤더에는 진입 링크만 둔다. */}
-        <Link className="btn btn-ghost" href="/settings">
-          설정
-        </Link>
+        {/* 메뉴는 좌우로 흩지 않고 오른쪽 한 덩어리로 모은다(CatchRhy 랜딩 배치 참고) */}
+        <nav style={{ display: "flex", alignItems: "center", gap: "var(--sp-5)" }}>
+          {isReady && accessToken && (
+            <>
+              <Link className="nav-link" href="/">
+                홈
+              </Link>
+              <Link className="nav-link" href="/groups">
+                그룹
+              </Link>
+              <Link className="nav-link" href="/dm">
+                DM
+              </Link>
+              <Link className="nav-link" href="/search">
+                검색
+              </Link>
+              <Link className="nav-link" href="/notifications">
+                알림
+                {!!unreadCount && (
+                  <span
+                    style={{
+                      fontSize: "0.7rem",
+                      fontWeight: 700,
+                      color: "var(--on-accent)",
+                      background: "var(--accent)",
+                      borderRadius: 999,
+                      padding: "1px 7px",
+                    }}
+                  >
+                    {unreadCount}
+                  </span>
+                )}
+              </Link>
+              <span aria-hidden style={{ width: 1, height: 14, background: "var(--stone-border)" }} />
+            </>
+          )}
 
-        {isReady && (
-          accessToken ? (
-            <>
-              <Link className="btn btn-ghost" href="/profile">
-                프로필
-              </Link>
-              <button className="btn btn-ghost" type="button" onClick={handleLogout}>
-                로그아웃
-              </button>
-            </>
-          ) : (
-            <>
-              <Link className="btn btn-ghost" href="/login">
-                로그인
-              </Link>
-              <Link className="btn btn-primary" href="/register">
-                가입하기
-              </Link>
-            </>
-          )
-        )}
+          {/* 테마 전환 UI는 /settings로 이동 — 헤더에는 진입 링크만 둔다. */}
+          <Link className="nav-link" href="/settings">
+            설정
+          </Link>
+
+          {isReady && (
+            accessToken ? (
+              <>
+                <Link className="nav-link" href="/profile">
+                  프로필
+                </Link>
+                <button className="nav-link" type="button" onClick={handleLogout}>
+                  로그아웃
+                </button>
+              </>
+            ) : (
+              <>
+                <Link className="nav-link" href="/login">
+                  로그인
+                </Link>
+                <Link className="btn btn-primary" href="/register">
+                  가입하기
+                </Link>
+              </>
+            )
+          )}
+        </nav>
       </div>
     </header>
   );
