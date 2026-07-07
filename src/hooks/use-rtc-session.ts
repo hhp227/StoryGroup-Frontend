@@ -31,8 +31,12 @@ export interface RtcSession {
   camOn: boolean;
   // 카메라가 아예 없어 오디오 전용으로 연결된 경우 — 토글 UI를 숨기는 데 쓴다.
   hasVideo: boolean;
+  // 화면 공유(D9): 오디오 전용이거나 getDisplayMedia가 없는 브라우저면 버튼을 숨긴다.
+  sharing: boolean;
+  canShareScreen: boolean;
   toggleMic: () => void;
   toggleCam: () => void;
+  toggleScreenShare: () => void;
 }
 
 // TURN 없이 STUN만 — 대칭 NAT 간 연결 실패 가능성은 알려진 제약(설계 문서 비목표).
@@ -66,10 +70,14 @@ export function useRtcSession(
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
   const [hasVideo, setHasVideo] = useState(true);
+  const [sharing, setSharing] = useState(false);
 
   const localStreamRef = useRef<MediaStream | null>(null);
   const clientRef = useRef<Client | null>(null);
   const peersRef = useRef(new Map<number, PeerRecord>());
+  // 화면 공유 중 보관되는 트랙들(D9) — 카메라는 stop하지 않고 들고 있다가 공유 중지 시 복귀.
+  const camTrackRef = useRef<MediaStreamTrack | null>(null);
+  const screenTrackRef = useRef<MediaStreamTrack | null>(null);
 
   const myUserId = getUserIdFromToken(token);
 
@@ -266,6 +274,12 @@ export function useRtcSession(
       clientRef.current = null;
       localStreamRef.current?.getTracks().forEach((t) => t.stop());
       localStreamRef.current = null;
+      // 공유 중에 끊으면 스트림 밖에 있는 트랙(보관 중인 카메라)도 꺼야 카메라 표시등이 남지 않는다.
+      screenTrackRef.current?.stop();
+      screenTrackRef.current = null;
+      camTrackRef.current?.stop();
+      camTrackRef.current = null;
+      setSharing(false);
       setLocalStream(null);
       setRemotePeers([]);
       setStatus("idle");
@@ -283,15 +297,82 @@ export function useRtcSession(
 
   const toggleCam = () => {
     const stream = localStreamRef.current;
-    if (!stream) return;
+    // 공유 중엔 잠금(D9) — 스트림의 비디오 트랙이 카메라가 아니라 화면이다.
+    if (!stream || sharing) return;
     const next = !camOn;
     stream.getVideoTracks().forEach((t) => (t.enabled = next));
     setCamOn(next);
   };
 
+  // 화면 공유 중지: 화면 트랙을 버리고 보관해둔 카메라 트랙을 각 sender와 로컬 스트림에 복귀(D9).
+  const stopScreenShare = () => {
+    const stream = localStreamRef.current;
+    const screenTrack = screenTrackRef.current;
+    if (!stream || !screenTrack) return;
+    const camTrack = camTrackRef.current;
+    peersRef.current.forEach((rec) => {
+      const sender = rec.pc.getSenders().find((s) => s.track?.kind === "video");
+      void sender?.replaceTrack(camTrack).catch(() => {});
+    });
+    stream.removeTrack(screenTrack);
+    screenTrack.stop();
+    if (camTrack) stream.addTrack(camTrack);
+    screenTrackRef.current = null;
+    camTrackRef.current = null;
+    setSharing(false);
+  };
+
+  const startScreenShare = async () => {
+    const stream = localStreamRef.current;
+    if (!stream || screenTrackRef.current) return;
+    const camTrack = stream.getVideoTracks()[0];
+    if (!camTrack) return; // 오디오 전용 — video sender가 없어 replaceTrack 불가(D9)
+    let display: MediaStream;
+    try {
+      display = await navigator.mediaDevices.getDisplayMedia({ video: true });
+    } catch {
+      return; // 공유 선택창에서 취소 — 에러 아님
+    }
+    const screenTrack = display.getVideoTracks()[0];
+    if (!screenTrack) return;
+    screenTrackRef.current = screenTrack;
+    camTrackRef.current = camTrack;
+    peersRef.current.forEach((rec) => {
+      const sender = rec.pc.getSenders().find((s) => s.track?.kind === "video");
+      void sender?.replaceTrack(screenTrack).catch(() => {});
+    });
+    // 로컬 스트림의 트랙 자체를 바꿔두면 공유 중 새로 들어온 피어(createPeer의 addTrack)도 화면을 받는다(D9).
+    stream.removeTrack(camTrack);
+    stream.addTrack(screenTrack);
+    // 브라우저 자체 UI의 "공유 중지"도 같은 정리 경로를 타게 한다.
+    screenTrack.onended = () => stopScreenShare();
+    setSharing(true);
+  };
+
+  const toggleScreenShare = () => {
+    if (screenTrackRef.current) stopScreenShare();
+    else void startScreenShare();
+  };
+
+  const canShareScreen =
+    hasVideo && typeof navigator !== "undefined" && typeof navigator.mediaDevices?.getDisplayMedia === "function";
+
   // 미디어 획득~STOMP 연결 사이 구간은 setState 없이 파생값으로 "connecting"을 표시한다
   // (effect 안 동기 setState를 피하는 이 프로젝트 관례 — react-hooks/set-state-in-effect).
   const displayStatus: RtcStatus = enabled && status === "idle" ? "connecting" : status;
 
-  return { status: displayStatus, error, localStream, remotePeers, micOn, camOn, hasVideo, toggleMic, toggleCam };
+  return {
+    status: displayStatus,
+    error,
+    localStream,
+    remotePeers,
+    micOn,
+    camOn,
+    hasVideo,
+    sharing,
+    canShareScreen,
+    toggleMic,
+    toggleCam,
+    toggleScreenShare,
+  };
 }

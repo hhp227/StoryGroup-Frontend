@@ -8,10 +8,13 @@ function VideoTile({
   stream,
   label,
   isLocal = false,
+  // 거울 모드는 카메라일 때만 — 화면 공유 중엔 글자가 뒤집혀 보이므로 끈다.
+  mirror = isLocal,
 }: {
   stream: MediaStream | null;
   label: string;
   isLocal?: boolean;
+  mirror?: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   useEffect(() => {
@@ -32,8 +35,8 @@ function VideoTile({
           width: "100%",
           height: "100%",
           objectFit: "cover",
-          // 거울 모드는 내 화면만 — 상대에게는 원본이 간다.
-          transform: isLocal ? "scaleX(-1)" : undefined,
+          // 거울 모드는 내 카메라 화면만 — 상대에게는 원본이 간다.
+          transform: mirror ? "scaleX(-1)" : undefined,
         }}
       />
       <span
@@ -56,7 +59,20 @@ function VideoTile({
 
 // 그룹 회의와 DM 통화가 공유하는 통화 UI — 세션 상태(useRtcSession)를 받아 그리기만 한다.
 export function VideoCallPanel({ session, onHangUp }: { session: RtcSession; onHangUp: () => void }) {
-  const { status, error, localStream, remotePeers, micOn, camOn, hasVideo, toggleMic, toggleCam } = session;
+  const {
+    status,
+    error,
+    localStream,
+    remotePeers,
+    micOn,
+    camOn,
+    hasVideo,
+    sharing,
+    canShareScreen,
+    toggleMic,
+    toggleCam,
+    toggleScreenShare,
+  } = session;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
@@ -77,7 +93,12 @@ export function VideoCallPanel({ session, onHangUp }: { session: RtcSession; onH
           gap: "var(--sp-3)",
         }}
       >
-        <VideoTile stream={localStream} label={`나${micOn ? "" : " (음소거)"}`} isLocal />
+        <VideoTile
+          stream={localStream}
+          label={`나${sharing ? " (화면 공유)" : ""}${micOn ? "" : " (음소거)"}`}
+          isLocal
+          mirror={!sharing}
+        />
         {remotePeers.map((peer) => (
           <VideoTile key={peer.userId} stream={peer.stream} label={peer.userName} />
         ))}
@@ -88,8 +109,19 @@ export function VideoCallPanel({ session, onHangUp }: { session: RtcSession; onH
           {micOn ? "🎙️ 마이크 끄기" : "🔇 마이크 켜기"}
         </button>
         {hasVideo && (
-          <button className="btn btn-secondary" type="button" onClick={toggleCam} disabled={status !== "in-call"}>
+          <button
+            className="btn btn-secondary"
+            type="button"
+            onClick={toggleCam}
+            // 공유 중엔 카메라가 아니라 화면이 나가는 중이라 토글이 의미가 없다(D9).
+            disabled={status !== "in-call" || sharing}
+          >
             {camOn ? "📷 카메라 끄기" : "🚫 카메라 켜기"}
+          </button>
+        )}
+        {canShareScreen && (
+          <button className="btn btn-secondary" type="button" onClick={toggleScreenShare} disabled={status !== "in-call"}>
+            {sharing ? "🛑 공유 중지" : "🖥️ 화면 공유"}
           </button>
         )}
         <button className="btn btn-danger" type="button" onClick={onHangUp}>
