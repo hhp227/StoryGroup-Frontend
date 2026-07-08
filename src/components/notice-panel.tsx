@@ -14,7 +14,7 @@ export function NoticePanel({ token, groupId }: { token: string; groupId: number
 
   useEffect(() => {
     let cancelled = false;
-    listGroupNotices(token, groupId, PREVIEW_COUNT)
+    listGroupNotices(token, groupId, 0, PREVIEW_COUNT)
       .then((fetched) => {
         if (!cancelled) setData(fetched);
       })
@@ -42,6 +42,15 @@ export function NoticePanel({ token, groupId }: { token: string; groupId: number
         >
           {data.totalCount > 99 ? "99+" : data.totalCount}
         </span>
+        {/* 공지는 피드에 안 실리므로 3건 밖 공지는 전체 페이지가 유일한 통로다 */}
+        {data.totalCount > PREVIEW_COUNT && (
+          <Link
+            href={`/groups/${groupId}/notices`}
+            style={{ marginLeft: "auto", color: "var(--accent)", fontSize: "0.82rem", fontWeight: 600 }}
+          >
+            전체 보기 →
+          </Link>
+        )}
       </div>
       {data.notices.map((notice) => (
         <Link

@@ -111,6 +111,8 @@ body {
 }
 body {
   margin: 0;
+  /* 헤더가 fixed(60px + 하단 보더 1px)라 흐름에서 빠진다 — 본문을 그만큼 내려준다 */
+  padding-top: 61px;
   color: var(--ink);
   background: var(--paper);
   font-family: var(--font-body);
@@ -156,9 +158,8 @@ a {
   align-items: start;
 }
 .page-side {
-  /* 헤더(60px) 아래에 붙어 따라 내려오는 사이드 패널 */
-  position: sticky;
-  top: 76px;
+  /* 사이드 패널은 본문과 함께 스크롤된다 — 진입점 성격의 부가 콘텐츠가
+     화면에 계속 붙어 따라다니면 피드 읽기를 방해해서 sticky를 쓰지 않는다. */
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
@@ -167,9 +168,6 @@ a {
   /* 좁은 화면에선 사이드바가 피드 아래로 내려간다 */
   .page-split {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .page-side {
-    position: static;
   }
 }
 

@@ -32,39 +32,40 @@ export default function GroupDetailPage() {
 
   if (!isReady || !accessToken) return null;
 
-  // 피드 + 오른쪽 앨범 패널 2단(B안). 좁은 화면에선 패널이 피드 아래로 내려간다(.page-split).
+  // 그룹 헤더는 전체 폭으로 위에 두고, 그 아래를 피드 + 사이드바 2단으로 나눈다(B안).
+  // 이렇게 해야 사이드바 시작선이 홈과 동일하게 피드(입력폼) 상단에 맞는다.
   return (
-    <div className="container page page-split">
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-5)" }}>
-        {loadError && <p className="field-error">{loadError}</p>}
-        {group && (
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-3)" }}>
-              <h1 style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem" }}>{group.name}</h1>
-              <span className={roleChipClass(group.myRole)}>{roleLabel(group.myRole)}</span>
-            </div>
-            {group.description && <p style={{ color: "var(--ink-soft)", marginTop: "var(--sp-1)" }}>{group.description}</p>}
-            <div style={{ display: "flex", gap: "var(--sp-3)", marginTop: "var(--sp-4)" }}>
-              <Link className="btn btn-secondary" href={`/groups/${groupId}/members`}>
-                멤버
-              </Link>
-              <Link className="btn btn-secondary" href={`/groups/${groupId}/chat`}>
-                채팅
-              </Link>
-              {group.myRole === "OWNER" && (
-                <Link className="btn btn-secondary" href={`/groups/${groupId}/settings`}>
-                  설정
-                </Link>
-              )}
-            </div>
+    <div className="container page" style={{ display: "flex", flexDirection: "column", gap: "var(--sp-5)" }}>
+      {loadError && <p className="field-error">{loadError}</p>}
+      {group && (
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-3)" }}>
+            <h1 style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem" }}>{group.name}</h1>
+            <span className={roleChipClass(group.myRole)}>{roleLabel(group.myRole)}</span>
           </div>
-        )}
+          {group.description && <p style={{ color: "var(--ink-soft)", marginTop: "var(--sp-1)" }}>{group.description}</p>}
+          <div style={{ display: "flex", gap: "var(--sp-3)", marginTop: "var(--sp-4)" }}>
+            <Link className="btn btn-secondary" href={`/groups/${groupId}/members`}>
+              멤버
+            </Link>
+            <Link className="btn btn-secondary" href={`/groups/${groupId}/chat`}>
+              채팅
+            </Link>
+            {group.myRole === "OWNER" && (
+              <Link className="btn btn-secondary" href={`/groups/${groupId}/settings`}>
+                설정
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+      <div className="page-split">
         <GroupPostFeed key={groupId} token={accessToken} groupId={groupId} />
+        <aside className="page-side">
+          <NoticePanel token={accessToken} groupId={groupId} />
+          <AlbumPanel token={accessToken} groupId={groupId} />
+        </aside>
       </div>
-      <aside className="page-side">
-        <NoticePanel token={accessToken} groupId={groupId} />
-        <AlbumPanel token={accessToken} groupId={groupId} />
-      </aside>
     </div>
   );
 }
