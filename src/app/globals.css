@@ -148,6 +148,30 @@ a {
 .page-form {
   max-width: 460px; /* 로그인/설정 폼 */
 }
+.page-split {
+  /* 피드 + 오른쪽 사이드바(앨범 패널) 2단 — 홈(라운지)/그룹 메인 전용 */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: var(--sp-6);
+  align-items: start;
+}
+.page-side {
+  /* 헤더(60px) 아래에 붙어 따라 내려오는 사이드 패널 */
+  position: sticky;
+  top: 76px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+@media (max-width: 900px) {
+  /* 좁은 화면에선 사이드바가 피드 아래로 내려간다 */
+  .page-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .page-side {
+    position: static;
+  }
+}
 
 /* 헤더 네비 링크 — 버튼에도 쓸 수 있게 리셋 포함 */
 .nav-link {

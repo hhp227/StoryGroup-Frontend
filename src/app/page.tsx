@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { AlbumPanel } from "@/components/album-panel";
 import { useAuth } from "@/components/auth-provider";
 import { GroupPostFeed } from "@/components/group-post-feed";
 import { ApiError, listMyGroups } from "@/lib/api";
@@ -60,14 +61,20 @@ function LoungeFeed({ token }: { token: string }) {
       .catch((err) => setLoadError(err instanceof ApiError ? err.message : "피드를 불러오지 못했습니다"));
   }, [token]);
 
+  // 피드 + 오른쪽 앨범 패널 2단(B안). 좁은 화면에선 패널이 피드 아래로 내려간다(.page-split).
   return (
-    <div className="container page page-narrow">
-      {loadError && <p className="field-error">{loadError}</p>}
-      {loungeGroupId !== null ? (
-        <GroupPostFeed key={loungeGroupId} token={token} groupId={loungeGroupId} />
-      ) : (
-        !loadError && <p style={{ color: "var(--ink-faint)" }}>불러오는 중...</p>
-      )}
+    <div className="container page page-split">
+      <div>
+        {loadError && <p className="field-error">{loadError}</p>}
+        {loungeGroupId !== null ? (
+          <GroupPostFeed key={loungeGroupId} token={token} groupId={loungeGroupId} />
+        ) : (
+          !loadError && <p style={{ color: "var(--ink-faint)" }}>불러오는 중...</p>
+        )}
+      </div>
+      <aside className="page-side">
+        {loungeGroupId !== null && <AlbumPanel token={token} groupId={loungeGroupId} />}
+      </aside>
     </div>
   );
 }

@@ -436,6 +436,26 @@ export function getIceServers(token: string) {
   return request<{ iceServers: IceServer[] }>("/api/rtc/ice-servers", { token });
 }
 
+// 그룹 앨범(파생 뷰): 그룹 게시글 첨부 이미지 모음. postId로 원본 게시글로 이동한다.
+export interface GroupPhoto {
+  id: number;
+  postId: number;
+  image: string;
+  userId: number;
+  authorName: string;
+  createdAt: string;
+}
+
+// 다른 목록 응답과 달리 총 개수를 함께 준다 — 앨범 패널의 "+N"/"N장" 표기용.
+export interface GroupPhotosPage {
+  totalCount: number;
+  photos: GroupPhoto[];
+}
+
+export function listGroupPhotos(token: string, groupId: number, page = 0, size = 30) {
+  return request<GroupPhotosPage>(`/api/groups/${groupId}/photos?page=${page}&size=${size}`, { token });
+}
+
 export interface GroupFile {
   id: number;
   groupId: number;
