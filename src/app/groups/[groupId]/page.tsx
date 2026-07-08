@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { AlbumPanel } from "@/components/album-panel";
+import { NoticePanel } from "@/components/notice-panel";
 import { useAuth } from "@/components/auth-provider";
 import { GroupPostFeed } from "@/components/group-post-feed";
 import { ApiError, getGroup, type Group } from "@/lib/api";
@@ -61,6 +62,7 @@ export default function GroupDetailPage() {
         <GroupPostFeed key={groupId} token={accessToken} groupId={groupId} />
       </div>
       <aside className="page-side">
+        <NoticePanel token={accessToken} groupId={groupId} />
         <AlbumPanel token={accessToken} groupId={groupId} />
       </aside>
     </div>
