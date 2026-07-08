@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { AlbumPanel } from "@/components/album-panel";
+import { FilePanel } from "@/components/file-panel";
+import { MeetingLivePanel } from "@/components/meeting-live-panel";
+import { MemberPanel } from "@/components/member-panel";
 import { NoticePanel } from "@/components/notice-panel";
 import { useAuth } from "@/components/auth-provider";
 import { GroupPostFeed } from "@/components/group-post-feed";
@@ -62,8 +65,12 @@ export default function GroupDetailPage() {
       <div className="page-split">
         <GroupPostFeed key={groupId} token={accessToken} groupId={groupId} />
         <aside className="page-side">
+          {/* 라이브 카드는 긴급성 콘텐츠라 맨 위, 멤버는 항상 있어 하단 앵커 */}
+          <MeetingLivePanel token={accessToken} groupId={groupId} />
           <NoticePanel token={accessToken} groupId={groupId} />
           <AlbumPanel token={accessToken} groupId={groupId} />
+          <MemberPanel token={accessToken} groupId={groupId} />
+          <FilePanel token={accessToken} groupId={groupId} />
         </aside>
       </div>
     </div>

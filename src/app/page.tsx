@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AlbumPanel } from "@/components/album-panel";
+import { MyGroupsPanel } from "@/components/my-groups-panel";
 import { NoticePanel } from "@/components/notice-panel";
 import { useAuth } from "@/components/auth-provider";
 import { GroupPostFeed } from "@/components/group-post-feed";
-import { ApiError, listMyGroups } from "@/lib/api";
+import { ApiError, listMyGroups, type Group } from "@/lib/api";
 
 export default function Home() {
   const { accessToken, isReady } = useAuth();
@@ -46,21 +47,23 @@ function MarketingLanding() {
 }
 
 function LoungeFeed({ token }: { token: string }) {
-  const [loungeGroupId, setLoungeGroupId] = useState<number | null>(null);
+  // 라운지 id만 뽑지 않고 목록 전체를 들고 있는다 — 사이드바 "내 그룹" 패널이 같은 응답을 재사용(추가 요청 없음).
+  const [groups, setGroups] = useState<Group[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     listMyGroups(token)
-      .then((groups) => {
-        const lounge = groups.find((g) => g.isLounge);
-        if (!lounge) {
+      .then((fetched) => {
+        if (!fetched.some((g) => g.isLounge)) {
           setLoadError("라운지를 찾을 수 없습니다");
           return;
         }
-        setLoungeGroupId(lounge.id);
+        setGroups(fetched);
       })
       .catch((err) => setLoadError(err instanceof ApiError ? err.message : "피드를 불러오지 못했습니다"));
   }, [token]);
+
+  const loungeGroupId = groups?.find((g) => g.isLounge)?.id ?? null;
 
   // 피드 + 오른쪽 앨범 패널 2단(B안). 좁은 화면에선 패널이 피드 아래로 내려간다(.page-split).
   return (
@@ -74,10 +77,11 @@ function LoungeFeed({ token }: { token: string }) {
         )}
       </div>
       <aside className="page-side">
-        {loungeGroupId !== null && (
+        {groups !== null && loungeGroupId !== null && (
           <>
             <NoticePanel token={token} groupId={loungeGroupId} />
             <AlbumPanel token={token} groupId={loungeGroupId} />
+            <MyGroupsPanel groups={groups} />
           </>
         )}
       </aside>
