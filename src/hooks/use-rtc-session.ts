@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Client } from "@stomp/stompjs";
-import { getUserIdFromToken } from "@/lib/api";
+import { getIceServers, getUserIdFromToken } from "@/lib/api";
 import {
   RTC_QUEUE_DESTINATION,
   rtcInviteDestination,
@@ -39,8 +39,10 @@ export interface RtcSession {
   toggleScreenShare: () => void;
 }
 
-// TURN 없이 STUN만 — 대칭 NAT 간 연결 실패 가능성은 알려진 제약(설계 문서 비목표).
-const ICE_SERVERS = [{ urls: "stun:stun.l.google.com:19302" }];
+// ICE 서버 구성은 백엔드(/api/rtc/ice-servers)가 내려준다(D10) — TURN을 나중에 붙여도 프론트 무변경.
+// 이 폴백은 조회 실패 시에만 쓴다(설정 조회가 통화 자체를 막으면 안 된다). 현재는 서버 응답도 STUN뿐이라
+// TURN 없는 대칭 NAT 간 연결 실패는 여전히 알려진 제약.
+const FALLBACK_ICE_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
 
 interface PeerRecord {
   pc: RTCPeerConnection;
@@ -75,6 +77,8 @@ export function useRtcSession(
   const localStreamRef = useRef<MediaStream | null>(null);
   const clientRef = useRef<Client | null>(null);
   const peersRef = useRef(new Map<number, PeerRecord>());
+  // 세션 시작 시 백엔드에서 받아온 ICE 서버 목록(D10). createPeer가 매번 여기서 읽는다.
+  const iceServersRef = useRef<RTCIceServer[]>(FALLBACK_ICE_SERVERS);
   // 화면 공유 중 보관되는 트랙들(D9) — 카메라는 stop하지 않고 들고 있다가 공유 중지 시 복귀.
   const camTrackRef = useRef<MediaStreamTrack | null>(null);
   const screenTrackRef = useRef<MediaStreamTrack | null>(null);
@@ -115,7 +119,7 @@ export function useRtcSession(
     }
 
     function createPeer(userId: number, userName: string, initiator: boolean): PeerRecord {
-      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+      const pc = new RTCPeerConnection({ iceServers: iceServersRef.current });
       const rec: PeerRecord = { pc, userName, stream: null, pendingIce: [] };
       peers.set(userId, rec);
       const stream = localStreamRef.current;
@@ -212,12 +216,27 @@ export function useRtcSession(
       }
     }
 
-    acquireMedia()
-      .then((stream) => {
+    // ICE 서버 구성 조회(D10). 실패해도 STUN 폴백으로 통화는 계속되어야 하므로 절대 reject하지 않는다.
+    // TURN 자격증명 TTL(기본 12시간)은 통화 한 세션보다 충분히 길다 — 재연결 때도 같은 목록을 재사용한다.
+    async function fetchIceServers(): Promise<RTCIceServer[]> {
+      try {
+        const { iceServers } = await getIceServers(token);
+        const mapped = iceServers.map<RTCIceServer>((s) =>
+          s.username && s.credential ? { urls: s.urls, username: s.username, credential: s.credential } : { urls: s.urls }
+        );
+        return mapped.length > 0 ? mapped : FALLBACK_ICE_SERVERS;
+      } catch {
+        return FALLBACK_ICE_SERVERS;
+      }
+    }
+
+    Promise.all([acquireMedia(), fetchIceServers()])
+      .then(([stream, iceServers]) => {
         if (cancelled) {
           stream.getTracks().forEach((t) => t.stop());
           return;
         }
+        iceServersRef.current = iceServers;
         localStreamRef.current = stream;
         setLocalStream(stream);
         const videoAvailable = stream.getVideoTracks().length > 0;
