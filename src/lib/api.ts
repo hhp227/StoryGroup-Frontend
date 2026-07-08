@@ -425,6 +425,17 @@ export function listParticipants(token: string, groupId: number, meetingId: numb
   return request<Participant[]>(`/api/groups/${groupId}/meetings/${meetingId}/participants`, { token });
 }
 
+// 필드명이 브라우저 RTCIceServer와 같다 — 서버가 STUN(+설정 시 TURN 단기 자격증명)을 내려준다(Phase 7 D10).
+export interface IceServer {
+  urls: string[];
+  username: string | null;
+  credential: string | null;
+}
+
+export function getIceServers(token: string) {
+  return request<{ iceServers: IceServer[] }>("/api/rtc/ice-servers", { token });
+}
+
 export interface GroupFile {
   id: number;
   groupId: number;
