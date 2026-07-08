@@ -436,6 +436,23 @@ export function getIceServers(token: string) {
   return request<{ iceServers: IceServer[] }>("/api/rtc/ice-servers", { token });
 }
 
+// 사이드바 공지 패널 한 줄 — 본문 요약만 필요해서 Post보다 얇다.
+export interface NoticeSummary {
+  id: number;
+  text: string;
+  authorName: string;
+  createdAt: string;
+}
+
+export interface GroupNoticesPage {
+  totalCount: number;
+  notices: NoticeSummary[];
+}
+
+export function listGroupNotices(token: string, groupId: number, size = 3) {
+  return request<GroupNoticesPage>(`/api/groups/${groupId}/notices?size=${size}`, { token });
+}
+
 // 그룹 앨범(파생 뷰): 그룹 게시글 첨부 이미지 모음. postId로 원본 게시글로 이동한다.
 export interface GroupPhoto {
   id: number;

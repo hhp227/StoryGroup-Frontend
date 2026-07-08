@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AlbumPanel } from "@/components/album-panel";
+import { NoticePanel } from "@/components/notice-panel";
 import { useAuth } from "@/components/auth-provider";
 import { GroupPostFeed } from "@/components/group-post-feed";
 import { ApiError, listMyGroups } from "@/lib/api";
@@ -73,7 +74,12 @@ function LoungeFeed({ token }: { token: string }) {
         )}
       </div>
       <aside className="page-side">
-        {loungeGroupId !== null && <AlbumPanel token={token} groupId={loungeGroupId} />}
+        {loungeGroupId !== null && (
+          <>
+            <NoticePanel token={token} groupId={loungeGroupId} />
+            <AlbumPanel token={token} groupId={loungeGroupId} />
+          </>
+        )}
       </aside>
     </div>
   );
