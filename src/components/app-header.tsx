@@ -75,8 +75,12 @@ export function AppHeader() {
   return (
     <header
       style={{
-        position: "sticky",
+        // sticky가 아니라 fixed — 일부 환경에서 스크롤 시 헤더가 밀려 올라가는 문제가 있어
+        // 조건 없이 고정한다. 본문은 body의 padding-top(globals.css)이 헤더 높이만큼 내려준다.
+        position: "fixed",
         top: 0,
+        left: 0,
+        right: 0,
         zIndex: 100,
         borderBottom: "1px solid var(--stone-border)",
         background: "color-mix(in srgb, var(--linen) 88%, transparent)",

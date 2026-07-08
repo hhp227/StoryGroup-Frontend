@@ -449,8 +449,8 @@ export interface GroupNoticesPage {
   notices: NoticeSummary[];
 }
 
-export function listGroupNotices(token: string, groupId: number, size = 3) {
-  return request<GroupNoticesPage>(`/api/groups/${groupId}/notices?size=${size}`, { token });
+export function listGroupNotices(token: string, groupId: number, page = 0, size = 3) {
+  return request<GroupNoticesPage>(`/api/groups/${groupId}/notices?page=${page}&size=${size}`, { token });
 }
 
 // 그룹 앨범(파생 뷰): 그룹 게시글 첨부 이미지 모음. postId로 원본 게시글로 이동한다.
