@@ -29,7 +29,7 @@ export function PostCard({ post }: { post: Post }) {
         >
           {post.text}
         </p>
-        {post.images.length > 0 && (
+        {post.images.length > 0 ? (
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
             {post.images.slice(0, 1).map((img) => (
               // eslint-disable-next-line @next/next/no-img-element
@@ -41,7 +41,16 @@ export function PostCard({ post }: { post: Post }) {
               />
             ))}
           </div>
-        )}
+        ) : post.videos.length > 0 ? (
+          // 카드 전체가 Link라 재생 컨트롤 클릭이 상세 페이지로 튀지 않게 video 위의 클릭만 막는다.
+          <video
+            src={post.videos[0].video}
+            controls
+            preload="metadata"
+            onClick={(e) => e.preventDefault()}
+            style={{ width: "100%", borderRadius: 10, border: "1px solid var(--stone-border)" }}
+          />
+        ) : null}
       </article>
     </Link>
   );

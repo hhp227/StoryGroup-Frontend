@@ -144,6 +144,11 @@ export interface PostImage {
   image: string;
 }
 
+export interface PostVideo {
+  id: number;
+  video: string;
+}
+
 export interface Post {
   id: number;
   groupId: number;
@@ -152,6 +157,7 @@ export interface Post {
   authorProfileImg: string | null;
   text: string;
   images: PostImage[];
+  videos: PostVideo[];
   isNotice: boolean;
   createdAt: string;
 }
@@ -160,11 +166,11 @@ export function listPosts(token: string, groupId: number, page = 0, size = 20) {
   return request<Post[]>(`/api/groups/${groupId}/posts?page=${page}&size=${size}`, { token });
 }
 
-export function createPost(token: string, groupId: number, text: string, images?: string[]) {
+export function createPost(token: string, groupId: number, text: string, images?: string[], videos?: string[]) {
   return request<Post>(`/api/groups/${groupId}/posts`, {
     method: "POST",
     token,
-    body: JSON.stringify({ text, images }),
+    body: JSON.stringify({ text, images, videos }),
   });
 }
 
@@ -505,6 +511,14 @@ export function uploadImage(token: string, file: File) {
   const form = new FormData();
   form.append("file", file);
   return request<{ url: string }>("/api/images", { method: "POST", token, body: form });
+}
+
+// 동영상 전용 범용 업로드(/api/images의 동영상판) — 게시글 videos에 넣을 공개 URL을 돌려받는다.
+// 서버 multipart 상한(20MB)을 넘는 파일은 실패한다.
+export function uploadVideo(token: string, file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  return request<{ url: string }>("/api/videos", { method: "POST", token, body: form });
 }
 
 // 일반 파일 범용 업로드(/api/images의 파일판, MIME 제한 없음) — 채팅 첨부용.

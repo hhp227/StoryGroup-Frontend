@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ApiError, createPost, listPosts, uploadImage, type Post } from "@/lib/api";
+import { ApiError, createPost, listPosts, uploadImage, uploadVideo, type Post } from "@/lib/api";
 import { PostCard } from "./post-card";
 
 const PAGE_SIZE = 20;
@@ -25,6 +25,7 @@ export function GroupPostFeed({ token, groupId }: { token: string; groupId: numb
 
   const [text, setText] = useState("");
   const [images, setImages] = useState<string[]>([]);
+  const [videos, setVideos] = useState<string[]>([]);
   const [isAttaching, setIsAttaching] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -63,17 +64,23 @@ export function GroupPostFeed({ token, groupId }: { token: string; groupId: numb
   }, [hasMore, isLoadingPage]);
 
   // 첨부 즉시 업로드해서 URL을 모아두고, 게시할 때는 URL 목록만 보낸다(기존 API 계약 그대로).
+  // 이미지/동영상은 업로드 엔드포인트와 게시글 필드(images/videos)가 달라 MIME으로 갈라 보낸다.
   async function handleAttach(files: FileList | null) {
     if (!files || files.length === 0) return;
     setFormError(null);
     setIsAttaching(true);
     try {
       for (const file of Array.from(files)) {
-        const { url } = await uploadImage(token, file);
-        setImages((prev) => [...prev, url]);
+        if (file.type.startsWith("video/")) {
+          const { url } = await uploadVideo(token, file);
+          setVideos((prev) => [...prev, url]);
+        } else {
+          const { url } = await uploadImage(token, file);
+          setImages((prev) => [...prev, url]);
+        }
       }
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "이미지 업로드에 실패했습니다");
+      setFormError(err instanceof ApiError ? err.message : "첨부 파일 업로드에 실패했습니다");
     } finally {
       setIsAttaching(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -85,10 +92,17 @@ export function GroupPostFeed({ token, groupId }: { token: string; groupId: numb
     setFormError(null);
     setIsSubmitting(true);
     try {
-      const created = await createPost(token, groupId, text, images.length > 0 ? images : undefined);
+      const created = await createPost(
+        token,
+        groupId,
+        text,
+        images.length > 0 ? images : undefined,
+        videos.length > 0 ? videos : undefined,
+      );
       setPosts((prev) => [created, ...(prev ?? [])]);
       setText("");
       setImages([]);
+      setVideos([]);
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : "게시글 작성에 실패했습니다");
     } finally {
@@ -104,7 +118,7 @@ export function GroupPostFeed({ token, groupId }: { token: string; groupId: numb
           <textarea id="post-text" rows={3} required value={text} onChange={(e) => setText(e.target.value)} />
         </div>
 
-        {images.length > 0 && (
+        {(images.length > 0 || videos.length > 0) && (
           <div style={{ display: "flex", gap: "var(--sp-2)", flexWrap: "wrap" }}>
             {images.map((url) => (
               <div key={url} style={{ position: "relative" }}>
@@ -137,6 +151,38 @@ export function GroupPostFeed({ token, groupId }: { token: string; groupId: numb
                 </button>
               </div>
             ))}
+            {videos.map((url) => (
+              <div key={url} style={{ position: "relative" }}>
+                {/* preload="metadata"로 첫 프레임만 받아 썸네일처럼 보여준다. 재생은 게시 후 카드/상세에서. */}
+                <video
+                  src={url}
+                  muted
+                  preload="metadata"
+                  style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 10, border: "1px solid var(--stone-border)" }}
+                />
+                <button
+                  type="button"
+                  aria-label="동영상 제거"
+                  onClick={() => setVideos((prev) => prev.filter((u) => u !== url))}
+                  style={{
+                    position: "absolute",
+                    top: -6,
+                    right: -6,
+                    width: 20,
+                    height: 20,
+                    borderRadius: 999,
+                    border: "1px solid var(--stone-border)",
+                    background: "var(--paper)",
+                    color: "var(--ink-soft)",
+                    fontSize: "0.7rem",
+                    lineHeight: 1,
+                    cursor: "pointer",
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
           </div>
         )}
 
@@ -144,7 +190,7 @@ export function GroupPostFeed({ token, groupId }: { token: string; groupId: numb
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/*,video/*"
             multiple
             onChange={(e) => handleAttach(e.target.files)}
             disabled={isAttaching || isSubmitting}
