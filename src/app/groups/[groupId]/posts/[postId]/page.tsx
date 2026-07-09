@@ -140,11 +140,14 @@ export default function PostDetailPage() {
             )}
           </div>
           <p style={{ fontSize: "0.98rem", lineHeight: 1.6, margin: "var(--sp-4) 0", whiteSpace: "pre-wrap" }}>{post.text}</p>
-          {post.images.length > 0 && (
+          {(post.images.length > 0 || post.videos.length > 0) && (
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)", marginBottom: "var(--sp-4)" }}>
               {post.images.map((img) => (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img key={img.id} src={img.image} alt="" style={{ width: "100%", borderRadius: 10, border: "1px solid var(--stone-border)" }} />
+              ))}
+              {post.videos.map((v) => (
+                <video key={v.id} src={v.video} controls preload="metadata" style={{ width: "100%", borderRadius: 10, border: "1px solid var(--stone-border)" }} />
               ))}
             </div>
           )}
