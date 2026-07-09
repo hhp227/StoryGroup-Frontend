@@ -464,6 +464,7 @@ export interface GroupPhoto {
   id: number;
   postId: number;
   image: string;
+  mediaType: "image" | "video";
   userId: number;
   authorName: string;
   createdAt: string;
