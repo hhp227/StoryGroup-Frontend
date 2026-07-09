@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { listGroupPhotos, type GroupPhotosPage } from "@/lib/api";
+import { MediaThumb } from "./media-thumb";
 
 const PREVIEW_COUNT = 4;
 
@@ -49,12 +50,7 @@ export function AlbumPanel({ token, groupId }: { token: string; groupId: number 
               href={isOverflowTile ? `/groups/${groupId}/photos` : `/groups/${groupId}/posts/${photo.postId}`}
               style={{ position: "relative", display: "block", aspectRatio: "1", borderRadius: 10, overflow: "hidden" }}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={photo.image}
-                alt={`${photo.authorName}의 사진`}
-                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-              />
+              <MediaThumb photo={photo} />
               {isOverflowTile && (
                 <span
                   style={{

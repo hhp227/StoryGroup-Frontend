@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
 import { ApiError, listGroupPhotos, type GroupPhoto } from "@/lib/api";
+import { MediaThumb } from "@/components/media-thumb";
 
 const PAGE_SIZE = 30;
 
@@ -78,7 +79,7 @@ export default function GroupPhotosPage() {
       {loadError && <p className="field-error">{loadError}</p>}
       {photos === null && !loadError && <p style={{ color: "var(--ink-faint)" }}>불러오는 중...</p>}
       {photos?.length === 0 && (
-        <p style={{ color: "var(--ink-faint)" }}>아직 사진이 없습니다. 게시글에 사진을 올리면 여기에 모여요.</p>
+        <p style={{ color: "var(--ink-faint)" }}>아직 사진이 없습니다. 게시글에 사진이나 동영상을 올리면 여기에 모여요.</p>
       )}
 
       {sections.map((section) => (
@@ -94,13 +95,7 @@ export default function GroupPhotosPage() {
                 title={`${photo.authorName}의 게시글로 이동`}
                 style={{ display: "block", aspectRatio: "1", borderRadius: 10, overflow: "hidden" }}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={photo.image}
-                  alt={`${photo.authorName}의 사진`}
-                  loading="lazy"
-                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                />
+                <MediaThumb photo={photo} />
               </Link>
             ))}
           </div>
