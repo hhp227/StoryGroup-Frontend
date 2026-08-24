@@ -2,8 +2,9 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { ApiError, deleteGroup, getGroup, updateGroup, type Group } from "@/lib/api";
+import { ApiError, deleteGroup, getGroup, updateGroup, type Group, type GroupJoinType } from "@/lib/api";
 import { ImageUploadField } from "@/components/image-upload-field";
+import { JoinTypeField } from "@/components/join-type-field";
 
 export function GroupSettingsForm({ token, groupId }: { token: string; groupId: number }) {
   const router = useRouter();
@@ -13,6 +14,7 @@ export function GroupSettingsForm({ token, groupId }: { token: string; groupId: 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [image, setImage] = useState("");
+  const [joinType, setJoinType] = useState<GroupJoinType>("AUTO_APPROVE");
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -28,6 +30,7 @@ export function GroupSettingsForm({ token, groupId }: { token: string; groupId: 
         setName(g.name);
         setDescription(g.description ?? "");
         setImage(g.image ?? "");
+        setJoinType(g.joinType);
       })
       .catch((err) => setLoadError(err instanceof ApiError ? err.message : "그룹 정보를 불러오지 못했습니다"));
   }, [token, groupId]);
@@ -38,7 +41,7 @@ export function GroupSettingsForm({ token, groupId }: { token: string; groupId: 
     setSaved(false);
     setIsSubmitting(true);
     try {
-      const updated = await updateGroup(token, groupId, name, description || null, image || null);
+      const updated = await updateGroup(token, groupId, name, description || null, image || null, joinType);
       setGroup(updated);
       setSaved(true);
     } catch (err) {
@@ -75,6 +78,7 @@ export function GroupSettingsForm({ token, groupId }: { token: string; groupId: 
           <textarea id="group-description" rows={3} maxLength={1000} value={description} onChange={(e) => setDescription(e.target.value)} />
         </div>
         <ImageUploadField token={token} label="대표 이미지" value={image} onChange={setImage} />
+        {!group.isLounge && <JoinTypeField value={joinType} onChange={setJoinType} />}
 
         {formError && <p className="field-error">{formError}</p>}
         {saved && <p style={{ color: "var(--accent)", fontSize: "0.85rem" }}>저장했습니다.</p>}

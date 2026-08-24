@@ -1,7 +1,10 @@
 import Link from "next/link";
 import type { Post } from "@/lib/api";
+import { VideoAttachment } from "./video-attachment";
 
 export function PostCard({ post }: { post: Post }) {
+  const videos = post.videos ?? [];
+
   return (
     <Link href={`/groups/${post.groupId}/posts/${post.id}`} style={{ display: "block" }}>
       <article className="card" style={{ cursor: "pointer" }}>
@@ -15,20 +18,25 @@ export function PostCard({ post }: { post: Post }) {
           </div>
           {post.isNotice && <span className="chip chip-owner">공지</span>}
         </div>
-        <p
-          style={{
-            fontSize: "0.98rem",
-            lineHeight: 1.6,
-            margin: "var(--sp-4) 0",
-            whiteSpace: "pre-wrap",
-            display: "-webkit-box",
-            WebkitLineClamp: 6,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-          }}
-        >
-          {post.text}
-        </p>
+        {post.text.length > 0 ? (
+          <p
+            style={{
+              fontSize: "0.98rem",
+              lineHeight: 1.6,
+              margin: "var(--sp-4) 0",
+              whiteSpace: "pre-wrap",
+              display: "-webkit-box",
+              WebkitLineClamp: 6,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+            }}
+          >
+            {post.text}
+          </p>
+        ) : (
+          // 첨부만 있는 게시글 - 빈 문단의 위아래 여백 대신 최소 간격만 둔다.
+          <div style={{ height: "var(--sp-3)" }} />
+        )}
         {post.images.length > 0 ? (
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
             {post.images.slice(0, 1).map((img) => (
@@ -41,15 +49,8 @@ export function PostCard({ post }: { post: Post }) {
               />
             ))}
           </div>
-        ) : post.videos.length > 0 ? (
-          // 카드 전체가 Link라 재생 컨트롤 클릭이 상세 페이지로 튀지 않게 video 위의 클릭만 막는다.
-          <video
-            src={post.videos[0].video}
-            controls
-            preload="metadata"
-            onClick={(e) => e.preventDefault()}
-            style={{ width: "100%", borderRadius: 10, border: "1px solid var(--stone-border)" }}
-          />
+        ) : videos.length > 0 ? (
+          <VideoAttachment src={videos[0].video} />
         ) : null}
       </article>
     </Link>

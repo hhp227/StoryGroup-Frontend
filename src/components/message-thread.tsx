@@ -2,11 +2,17 @@
 
 import { memo, useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { ApiError, uploadChatFile, type ChatMessage, type MessageAttachment, type ReadPosition } from "@/lib/api";
+import { prepareVideoForUpload } from "@/lib/attach-video";
+import { ComposerAttachmentMenu } from "@/components/composer-attachment-menu";
 import { useChatSocket } from "@/hooks/use-chat-socket";
 import type { ChatSocketEvent } from "@/lib/ws";
 
 function isImageAttachment(attachment: MessageAttachment) {
   return attachment.contentType?.startsWith("image/") ?? false;
+}
+
+function isVideoAttachment(attachment: MessageAttachment) {
+  return attachment.contentType?.startsWith("video/") ?? false;
 }
 
 function formatFileSize(bytes: number | null) {
@@ -16,16 +22,27 @@ function formatFileSize(bytes: number | null) {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
-// 말풍선 안 첨부 표시 — 이미지는 인라인(클릭 시 원본 새 탭), 그 외 파일은 다운로드 링크.
+// 첨부 표시 — 이미지/영상은 말풍선 없이 미디어만 노출(이미지는 클릭 시 원본 새 탭),
+// 그 외 파일은 말풍선 안 다운로드 링크.
 function AttachmentContent({ attachment }: { attachment: MessageAttachment }) {
+  if (isVideoAttachment(attachment)) {
+    return (
+      <video
+        src={attachment.url}
+        controls
+        preload="metadata"
+        style={{ maxWidth: "min(300px, 100%)", maxHeight: 340, borderRadius: 14, display: "block" }}
+      />
+    );
+  }
   if (isImageAttachment(attachment)) {
     return (
-      <a href={attachment.url} target="_blank" rel="noreferrer" style={{ display: "block", lineHeight: 0 }}>
+      <a href={attachment.url} target="_blank" rel="noreferrer" style={{ display: "block", lineHeight: 0, maxWidth: "100%" }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={attachment.url}
           alt={attachment.name ?? "첨부 이미지"}
-          style={{ maxWidth: 220, maxHeight: 260, borderRadius: 10, objectFit: "cover" }}
+          style={{ maxWidth: "min(280px, 100%)", maxHeight: 320, borderRadius: 14, objectFit: "cover" }}
         />
       </a>
     );
@@ -49,41 +66,81 @@ function AttachmentContent({ attachment }: { attachment: MessageAttachment }) {
 const MessageBubble = memo(function MessageBubble({
   message,
   isMine,
+  showAuthor,
   readCount,
   onDelete,
 }: {
   message: ChatMessage;
   isMine: boolean;
+  // 직전 메시지와 작성자가 다를 때만 true — 연속 메시지는 아바타/이름을 생략하고 자리만 비워 정렬을 맞춘다.
+  showAuthor: boolean;
   // 나 말고 이 메시지까지 읽은 사람 수 — 내 메시지에만 의미 있음(그 외엔 0으로 옴).
   readCount: number;
   onDelete: (id: number) => void;
 }) {
+  // 이미지/영상 첨부는 말풍선 배경 없이 미디어 자체만 보여준다(텍스트가 있으면 아래 별도 말풍선).
+  const isMediaAttachment =
+    message.attachment != null && (isImageAttachment(message.attachment) || isVideoAttachment(message.attachment));
+
+  const media = isMediaAttachment && message.attachment ? <AttachmentContent attachment={message.attachment} /> : null;
+  const bubble =
+    message.text || (message.attachment && !isMediaAttachment) ? (
+      <div className={`bubble ${isMine ? "mine" : "theirs"}`}>
+        {message.attachment && !isMediaAttachment && <AttachmentContent attachment={message.attachment} />}
+        {message.text && (
+          <div style={message.attachment && !isMediaAttachment ? { marginTop: 6 } : undefined}>{message.text}</div>
+        )}
+      </div>
+    ) : null;
+
   return (
     <div className={`bubble-row ${isMine ? "mine" : ""}`}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 2, alignItems: isMine ? "flex-end" : "flex-start" }}>
-        {!isMine && <span style={{ fontSize: "0.72rem", color: "var(--ink-faint)", marginLeft: 4 }}>{message.authorName}</span>}
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 6 }}>
+      {!isMine &&
+        (showAuthor ? (
+          message.authorProfileImg ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={message.authorProfileImg}
+              alt=""
+              style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid var(--stone-border)" }}
+            />
+          ) : (
+            <div className="avatar" style={{ width: 32, height: 32, fontSize: "0.78rem" }}>
+              {message.authorName.slice(0, 1)}
+            </div>
+          )
+        ) : (
+          <span aria-hidden style={{ width: 32, flexShrink: 0 }} />
+        ))}
+      {/* 폭 제한(78%)은 행 전체 폭이 기준인 여기서 건다 — 말풍선 자체에 %를 걸면 조기 줄바꿈된다. */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 2, alignItems: isMine ? "flex-end" : "flex-start", maxWidth: "78%", minWidth: 0 }}>
+        {!isMine && showAuthor && (
+          <span style={{ fontSize: "0.72rem", color: "var(--ink-faint)", marginLeft: 4 }}>{message.authorName}</span>
+        )}
+        {/* 미디어와 글이 같이 온 메시지는 미디어를 윗줄에 따로 놓는다 — 한 행에 같이 두면
+            행 너비가 미디어 폭이 되어 삭제·읽음이 말풍선에서 멀찍이 떨어진 채 붙는다. */}
+        {media && bubble && <div style={{ maxWidth: "100%", marginBottom: 2 }}>{media}</div>}
+        {/* 삭제·읽음은 메시지의 마지막 요소(글이 있으면 말풍선, 없으면 미디어) 옆·바닥에 붙는다. */}
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 6, maxWidth: "100%", minWidth: 0 }}>
           {isMine && (
             <button
               type="button"
               onClick={() => onDelete(message.id)}
-              style={{ fontSize: "0.68rem", color: "var(--ink-faint)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+              style={{ fontSize: "0.68rem", color: "var(--ink-faint)", background: "none", border: "none", cursor: "pointer", padding: 0, flexShrink: 0 }}
             >
               삭제
             </button>
           )}
-          <div className={`bubble ${isMine ? "mine" : "theirs"}`}>
-            {message.attachment && <AttachmentContent attachment={message.attachment} />}
-            {message.text && (
-              <div style={message.attachment ? { marginTop: 6 } : undefined}>{message.text}</div>
-            )}
-          </div>
+          {/* "읽음 N"은 버블 옆·바닥 정렬(모바일 미러) — 버블 아래에 두면 내 메시지마다
+              세로로 한 줄씩 벌어져 대화가 성기게 읽힌다. 버블에 가장 가까이 붙이고
+              삭제는 바깥으로 밀어 둔다(읽음은 그 말풍선의 상태, 삭제는 그 말풍선에 대한 동작). */}
+          {isMine && readCount > 0 && (
+            <span style={{ fontSize: "0.66rem", color: "var(--accent)", whiteSpace: "nowrap", flexShrink: 0 }}>
+              읽음{readCount > 1 ? ` ${readCount}` : ""}
+            </span>
+          )}
+          {bubble ?? media}
         </div>
-        {isMine && readCount > 0 && (
-          <span style={{ fontSize: "0.66rem", color: "var(--accent)", marginRight: 2 }}>
-            읽음{readCount > 1 ? ` ${readCount}` : ""}
-          </span>
-        )}
       </div>
     </div>
   );
@@ -107,9 +164,12 @@ export interface MessageThreadProps {
   onSend: (text: string, attachment?: MessageAttachment) => Promise<ChatMessage>;
   onDelete: (messageId: number) => Promise<void>;
   onMarkRead: (lastReadMessageId: number) => Promise<void>;
+  // 첨부 패널의 보이스톡/페이스톡 — 통화 세션은 이 화면 위(GroupCallSession·DmCall)에 있고
+  // 시작만 위임받는다. 없으면 패널에서 통화 항목이 빠진다.
+  onStartCall?: (video: boolean) => void;
 }
 
-export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, fetchReads, onSend, onDelete, onMarkRead }: MessageThreadProps) {
+export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, fetchReads, onSend, onDelete, onMarkRead, onStartCall }: MessageThreadProps) {
   const [messages, setMessages] = useState<ChatMessage[] | null>(null);
   // userId -> 그 사람이 마지막으로 읽은 메시지 id.
   const [reads, setReads] = useState<Record<number, number>>({});
@@ -121,7 +181,12 @@ export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, fetc
   // (보내기 전에 마음을 바꾸면 스토리지에 고아 객체가 남지 않도록).
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingPreviewUrl, setPendingPreviewUrl] = useState<string | null>(null);
+  // 동영상 압축 진행 문구("압축 중 n%") — null이면 압축 중 아님, 압축 중엔 전송 비활성
+  const [attachStatus, setAttachStatus] = useState<string | null>(null);
+  // 첨부 패널의 "사진"과 "파일"은 같은 업로드 경로를 쓰지만 입력이 따로다 —
+  // 사진은 accept로 걸러 이미지만 보이는 대화상자를 열어준다.
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const [typists, setTypists] = useState<{ id: number; name: string }[]>([]);
   // 나 말고 지금 이 방을 보고 있는 사람들(PRESENCE 전체 목록에서 나를 뺀 것). null이면 아직 미수신.
   const [viewers, setViewers] = useState<{ userId: number; userName: string }[] | null>(null);
@@ -233,6 +298,11 @@ export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, fetc
     }
   }
 
+  // 고른 이모지는 입력창 끝에 덧붙는다(모바일 미러) — 패널은 열린 채로 두어 연달아 고를 수 있다.
+  function appendEmoji(emoji: string) {
+    handleTextChange(text + emoji);
+  }
+
   // 탭이 보이는 상태에서 최신 메시지가 갱신되면 읽음 위치를 서버에 보고한다.
   const latestMessageIdRef = useRef(0);
   const lastReportedReadRef = useRef(0);
@@ -265,6 +335,11 @@ export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, fetc
 
   function selectFile(file: File | undefined) {
     if (!file) return;
+    // 동영상은 선택 시점에 5MB 목표 압축을 거친다(§4-b) — 업로드는 기존대로 전송 시점.
+    if (file.type.startsWith("video/")) {
+      selectVideo(file);
+      return;
+    }
     setPendingPreviewUrl((prev) => {
       if (prev) URL.revokeObjectURL(prev);
       return file.type.startsWith("image/") ? URL.createObjectURL(file) : null;
@@ -272,13 +347,44 @@ export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, fetc
     setPendingFile(file);
   }
 
+  // 압축 중 다른 파일을 고르거나 첨부를 지우면 늦게 끝난 결과를 버린다(세대 카운터)
+  const attachGenerationRef = useRef(0);
+
+  async function selectVideo(file: File) {
+    const generation = ++attachGenerationRef.current;
+    setSendError(null);
+    setPendingPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setPendingFile(file); // 칩에 원본을 먼저 보여주고, 압축이 끝나면 압축본으로 바꾼다
+    try {
+      const prepared = await prepareVideoForUpload(file, (label) => {
+        if (attachGenerationRef.current === generation) setAttachStatus(label);
+      });
+      if (attachGenerationRef.current !== generation) return;
+      setPendingFile(prepared);
+    } catch (err) {
+      if (attachGenerationRef.current !== generation) return;
+      setPendingFile(null);
+      setSendError(err instanceof Error ? err.message : "동영상 압축에 실패했습니다.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } finally {
+      if (attachGenerationRef.current === generation) setAttachStatus(null);
+    }
+  }
+
   const clearPendingFile = useCallback(() => {
+    attachGenerationRef.current++; // 진행 중 압축 결과가 있어도 버린다
+    setAttachStatus(null);
     setPendingPreviewUrl((prev) => {
       if (prev) URL.revokeObjectURL(prev);
       return null;
     });
     setPendingFile(null);
+    // 같은 파일을 다시 고를 수 있게 두 입력 모두 비운다(값이 같으면 change가 안 뜬다).
     if (fileInputRef.current) fileInputRef.current.value = "";
+    if (imageInputRef.current) imageInputRef.current.value = "";
   }, []);
 
   // 방 이동 등으로 언마운트되면 미리보기 object URL을 정리한다.
@@ -292,6 +398,7 @@ export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, fetc
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!text.trim() && !pendingFile) return;
+    if (attachStatus !== null) return; // 압축 완료 전 Enter 제출 방지(버튼 비활성의 백업)
     setSendError(null);
     setIsSending(true);
     try {
@@ -344,11 +451,12 @@ export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, fetc
       <div className="chat-thread" style={{ maxHeight: "60vh", overflowY: "auto", padding: "var(--sp-2)" }}>
         {messages === null && !loadError && <p style={{ color: "var(--ink-faint)" }}>불러오는 중...</p>}
         {messages?.length === 0 && <p style={{ color: "var(--ink-faint)" }}>아직 메시지가 없습니다.</p>}
-        {messages?.map((m) => (
+        {messages?.map((m, i) => (
           <MessageBubble
             key={m.id}
             message={m}
             isMine={m.userId === myUserId}
+            showAuthor={messages[i - 1]?.userId !== m.userId}
             readCount={m.userId === myUserId ? otherReadPositions.filter((pos) => pos >= m.id).length : 0}
             onDelete={handleDelete}
           />
@@ -356,90 +464,97 @@ export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, fetc
         <div ref={bottomRef} />
       </div>
 
-      {typists.length > 0 && (
-        <p style={{ fontSize: "0.78rem", color: "var(--ink-faint)", margin: 0 }}>
-          {typists.map((t) => t.name).join(", ")}님이 입력 중...
-        </p>
-      )}
+      <div className="chat-composer">
+        {typists.length > 0 && (
+          <p style={{ fontSize: "0.78rem", color: "var(--ink-faint)", margin: 0 }}>
+            {typists.map((t) => t.name).join(", ")}님이 입력 중...
+          </p>
+        )}
 
-      {pendingFile && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "var(--sp-2)",
-            padding: "var(--sp-2)",
-            borderRadius: 10,
-            border: "1px solid var(--stone-border)",
-            background: "var(--linen)",
-            alignSelf: "flex-start",
-          }}
-        >
-          {pendingPreviewUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={pendingPreviewUrl}
-              alt=""
-              style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 8 }}
-            />
-          ) : (
-            <span style={{ fontSize: "1.2rem" }}>📄</span>
-          )}
-          <span style={{ fontSize: "0.8rem", color: "var(--ink-soft)", wordBreak: "break-all" }}>
-            {pendingFile.name} <span style={{ color: "var(--ink-faint)" }}>({formatFileSize(pendingFile.size)})</span>
-          </span>
-          <button
-            type="button"
-            onClick={clearPendingFile}
-            disabled={isSending}
-            aria-label="첨부 취소"
-            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-faint)", fontSize: "0.9rem", padding: 2 }}
+        {pendingFile && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "var(--sp-2)",
+              padding: "var(--sp-2)",
+              borderRadius: 10,
+              border: "1px solid var(--stone-border)",
+              background: "var(--linen)",
+              alignSelf: "flex-start",
+            }}
           >
-            ✕
-          </button>
-        </div>
-      )}
+            {pendingPreviewUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={pendingPreviewUrl}
+                alt=""
+                style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 8 }}
+              />
+            ) : (
+              <span style={{ fontSize: "1.2rem" }}>{pendingFile.type.startsWith("video/") ? "🎬" : "📄"}</span>
+            )}
+            <span style={{ fontSize: "0.8rem", color: "var(--ink-soft)", wordBreak: "break-all" }}>
+              {pendingFile.name} <span style={{ color: "var(--ink-faint)" }}>({formatFileSize(pendingFile.size)})</span>
+              {attachStatus && <span style={{ color: "var(--ink-faint)" }}> · {attachStatus}</span>}
+            </span>
+            <button
+              type="button"
+              onClick={clearPendingFile}
+              disabled={isSending}
+              aria-label="첨부 취소"
+              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-faint)", fontSize: "0.9rem", padding: 2 }}
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
-      <form onSubmit={handleSubmit} style={{ display: "flex", gap: "var(--sp-2)" }}>
-        <input
-          ref={fileInputRef}
-          type="file"
-          hidden
-          onChange={(e) => selectFile(e.target.files?.[0])}
-        />
-        <button
-          type="button"
-          className="btn btn-ghost"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={isSending}
-          aria-label="파일 첨부"
-          title="파일 첨부"
-          style={{ padding: "0 var(--sp-3)" }}
-        >
-          📎
-        </button>
-        <input
-          type="text"
-          required={!pendingFile}
-          placeholder={pendingFile ? "메시지 (선택)..." : "메시지 보내기..."}
-          value={text}
-          onChange={(e) => handleTextChange(e.target.value)}
-          style={{
-            flex: 1,
-            fontFamily: "var(--font-body)",
-            fontSize: "0.95rem",
-            padding: "var(--sp-3)",
-            borderRadius: 10,
-            border: "1px solid var(--stone-border)",
-            background: "var(--linen)",
-            color: "var(--ink)",
-          }}
-        />
-        <button className="btn btn-primary" type="submit" disabled={isSending}>
-          {isSending && pendingFile ? "업로드 중..." : "전송"}
-        </button>
-      </form>
-      {sendError && <p className="field-error">{sendError}</p>}
+        <form onSubmit={handleSubmit} style={{ display: "flex", gap: "var(--sp-2)" }}>
+          <input
+            ref={fileInputRef}
+            type="file"
+            hidden
+            onChange={(e) => selectFile(e.target.files?.[0])}
+          />
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={(e) => selectFile(e.target.files?.[0])}
+          />
+          <ComposerAttachmentMenu
+            disabled={isSending}
+            onPickImage={() => imageInputRef.current?.click()}
+            onPickFile={() => fileInputRef.current?.click()}
+            onPickEmoji={appendEmoji}
+            onStartCall={onStartCall}
+          />
+          <input
+            type="text"
+            required={!pendingFile}
+            placeholder={pendingFile ? "메시지 (선택)..." : "메시지 보내기..."}
+            value={text}
+            onChange={(e) => handleTextChange(e.target.value)}
+            style={{
+              flex: 1,
+              fontFamily: "var(--font-body)",
+              fontSize: "0.95rem",
+              padding: "var(--sp-3)",
+              borderRadius: 10,
+              border: "1px solid var(--stone-border)",
+              background: "var(--linen)",
+              color: "var(--ink)",
+            }}
+          />
+          {/* 압축이 끝나기 전에 보내면 원본이 그대로 나간다 — 완료까지 전송을 막는다(§4-b) */}
+          <button className="btn btn-primary" type="submit" disabled={isSending || attachStatus !== null}>
+            {isSending && pendingFile ? "업로드 중..." : "전송"}
+          </button>
+        </form>
+        {sendError && <p className="field-error">{sendError}</p>}
+      </div>
     </div>
   );
 }

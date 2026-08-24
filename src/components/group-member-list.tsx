@@ -4,13 +4,20 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ApiError,
+  approveJoinRequest,
+  blockUser,
   getGroup,
   getOrCreateDirectRoom,
   getUserIdFromToken,
   kickMember,
+  listBlockedUsers,
+  listJoinRequests,
   listMembers,
+  rejectJoinRequest,
+  unblockUser,
   updateMemberRole,
   type Group,
+  type JoinRequest,
   type Member,
 } from "@/lib/api";
 import { canModerate, roleChipClass, roleLabel } from "@/lib/roles";
@@ -21,6 +28,8 @@ export function GroupMemberList({ token, groupId }: { token: string; groupId: nu
 
   const [group, setGroup] = useState<Group | null>(null);
   const [members, setMembers] = useState<Member[] | null>(null);
+  const [joinRequests, setJoinRequests] = useState<JoinRequest[] | null>(null);
+  const [blockedIds, setBlockedIds] = useState<Set<number>>(new Set());
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [busyFor, setBusyFor] = useState<number | null>(null);
@@ -32,9 +41,67 @@ export function GroupMemberList({ token, groupId }: { token: string; groupId: nu
       .then(([g, m]) => {
         setGroup(g);
         setMembers(m);
+        // 가입 신청 목록은 모더레이터 전용 API라 권한이 있을 때만 조회한다.
+        if (canModerate(g.myRole) && !g.isLounge) {
+          listJoinRequests(token, groupId).then(setJoinRequests).catch(() => setJoinRequests(null));
+        }
       })
       .catch((err) => setLoadError(err instanceof ApiError ? err.message : "멤버 목록을 불러오지 못했습니다"));
+    // 멤버별 차단/해제 버튼 상태 표시용. 실패해도 목록 자체는 보여준다.
+    listBlockedUsers(token)
+      .then((blocked) => setBlockedIds(new Set(blocked.map((b) => b.userId))))
+      .catch(() => {});
   }, [token, groupId]);
+
+  async function handleBlockToggle(member: Member) {
+    const isBlocked = blockedIds.has(member.userId);
+    setActionError(null);
+    setBusyFor(member.userId);
+    try {
+      if (isBlocked) {
+        await unblockUser(token, member.userId);
+      } else {
+        await blockUser(token, member.userId);
+      }
+      setBlockedIds((prev) => {
+        const next = new Set(prev);
+        if (isBlocked) next.delete(member.userId);
+        else next.add(member.userId);
+        return next;
+      });
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "차단 처리에 실패했습니다");
+    } finally {
+      setBusyFor(null);
+    }
+  }
+
+  async function handleApprove(req: JoinRequest) {
+    setActionError(null);
+    setBusyFor(req.userId);
+    try {
+      await approveJoinRequest(token, groupId, req.userId);
+      setJoinRequests((prev) => prev?.filter((r) => r.userId !== req.userId) ?? null);
+      setMembers(await listMembers(token, groupId));
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "가입 승인에 실패했습니다");
+    } finally {
+      setBusyFor(null);
+    }
+  }
+
+  async function handleReject(req: JoinRequest) {
+    setActionError(null);
+    setBusyFor(req.userId);
+    try {
+      await rejectJoinRequest(token, groupId, req.userId);
+      setJoinRequests((prev) => prev?.filter((r) => r.userId !== req.userId) ?? null);
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "가입 거절에 실패했습니다");
+    } finally {
+      setBusyFor(null);
+    }
+  }
 
   async function handleMessage(userId: number) {
     setActionError(null);
@@ -88,6 +155,38 @@ export function GroupMemberList({ token, groupId }: { token: string; groupId: nu
       {loadError && <p className="field-error">{loadError}</p>}
       {actionError && <p className="field-error">{actionError}</p>}
       {members === null && !loadError && <p style={{ color: "var(--ink-faint)" }}>불러오는 중...</p>}
+
+      {joinRequests && joinRequests.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)", marginBottom: "var(--sp-3)" }}>
+          <span style={{ fontWeight: 700, fontSize: "0.95rem" }}>가입 신청 {joinRequests.length}건</span>
+          {joinRequests.map((req) => {
+            const busy = busyFor === req.userId;
+            return (
+              <div
+                key={req.userId}
+                className="card"
+                style={{ display: "flex", alignItems: "center", gap: "var(--sp-3)", flexWrap: "wrap" }}
+              >
+                <div className="avatar">{req.name.slice(0, 1)}</div>
+                <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 120 }}>
+                  <span style={{ fontWeight: 700 }}>{req.name}</span>
+                  <span style={{ fontSize: "0.75rem", color: "var(--ink-faint)" }}>
+                    {new Date(req.requestedAt).toLocaleString("ko-KR")} 신청
+                  </span>
+                </div>
+                <div style={{ display: "flex", gap: "var(--sp-2)" }}>
+                  <button className="btn btn-primary" type="button" onClick={() => handleApprove(req)} disabled={busy}>
+                    승인
+                  </button>
+                  <button className="btn btn-secondary" type="button" onClick={() => handleReject(req)} disabled={busy}>
+                    거절
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
       {members?.map((member) => {
         const isSelf = member.userId === myUserId;
         const busy = busyFor === member.userId;
@@ -104,6 +203,16 @@ export function GroupMemberList({ token, groupId }: { token: string; groupId: nu
               {!isSelf && (
                 <button className="btn btn-secondary" type="button" onClick={() => handleMessage(member.userId)} disabled={busy}>
                   메시지
+                </button>
+              )}
+              {!isSelf && (
+                <button
+                  className={blockedIds.has(member.userId) ? "btn btn-secondary" : "btn btn-ghost"}
+                  type="button"
+                  onClick={() => handleBlockToggle(member)}
+                  disabled={busy}
+                >
+                  {blockedIds.has(member.userId) ? "차단 해제" : "차단"}
                 </button>
               )}
               {myRole === "OWNER" && !isSelf && member.role !== "OWNER" && !group?.isLounge && (

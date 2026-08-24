@@ -3,8 +3,9 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
-import { ApiError, createGroup } from "@/lib/api";
+import { ApiError, createGroup, type GroupJoinType } from "@/lib/api";
 import { ImageUploadField } from "@/components/image-upload-field";
+import { JoinTypeField } from "@/components/join-type-field";
 
 export default function NewGroupPage() {
   const { accessToken, isReady } = useAuth();
@@ -13,6 +14,7 @@ export default function NewGroupPage() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [image, setImage] = useState("");
+  const [joinType, setJoinType] = useState<GroupJoinType>("AUTO_APPROVE");
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -28,7 +30,7 @@ export default function NewGroupPage() {
     setFormError(null);
     setIsSubmitting(true);
     try {
-      const created = await createGroup(accessToken, name, description || null, image || null);
+      const created = await createGroup(accessToken, name, description || null, image || null, joinType);
       router.push(`/groups/${created.id}`);
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : "그룹 생성에 실패했습니다");
@@ -55,6 +57,7 @@ export default function NewGroupPage() {
           <input id="group-desc" type="text" maxLength={1000} value={description} onChange={(e) => setDescription(e.target.value)} />
         </div>
         <ImageUploadField token={accessToken} label="대표 이미지 (선택)" value={image} onChange={setImage} />
+        <JoinTypeField value={joinType} onChange={setJoinType} />
         {formError && <p className="field-error">{formError}</p>}
         <button className="btn btn-primary" type="submit" disabled={isSubmitting} style={{ alignSelf: "flex-start" }}>
           {isSubmitting ? "만드는 중..." : "그룹 만들기"}

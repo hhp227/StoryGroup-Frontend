@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AlbumPanel } from "@/components/album-panel";
-import { MyGroupsPanel } from "@/components/my-groups-panel";
 import { NoticePanel } from "@/components/notice-panel";
+import { PopularGroupsPanel } from "@/components/popular-groups-panel";
 import { useAuth } from "@/components/auth-provider";
 import { GroupPostFeed } from "@/components/group-post-feed";
 import { ApiError, listMyGroups, type Group } from "@/lib/api";
@@ -47,9 +47,10 @@ function MarketingLanding() {
 }
 
 function LoungeFeed({ token }: { token: string }) {
-  // 라운지 id만 뽑지 않고 목록 전체를 들고 있는다 — 사이드바 "내 그룹" 패널이 같은 응답을 재사용(추가 요청 없음).
+  // 라운지 id를 찾기 위한 조회. 사이드바 "인기 그룹" 패널은 탐색 API(sort=popular)를 따로 쓴다.
   const [groups, setGroups] = useState<Group[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [albumRefreshKey, setAlbumRefreshKey] = useState(0);
 
   useEffect(() => {
     listMyGroups(token)
@@ -71,7 +72,15 @@ function LoungeFeed({ token }: { token: string }) {
       <div>
         {loadError && <p className="field-error">{loadError}</p>}
         {loungeGroupId !== null ? (
-          <GroupPostFeed key={loungeGroupId} token={token} groupId={loungeGroupId} />
+          <GroupPostFeed
+            key={loungeGroupId}
+            token={token}
+            groupId={loungeGroupId}
+            // 앨범은 게시글 첨부의 파생 뷰라 첨부 있는 글이 올라오면 패널을 재조회시킨다.
+            onPostCreated={(post) => {
+              if (post.images.length > 0 || (post.videos ?? []).length > 0) setAlbumRefreshKey((k) => k + 1);
+            }}
+          />
         ) : (
           !loadError && <p style={{ color: "var(--ink-faint)" }}>불러오는 중...</p>
         )}
@@ -80,8 +89,8 @@ function LoungeFeed({ token }: { token: string }) {
         {groups !== null && loungeGroupId !== null && (
           <>
             <NoticePanel token={token} groupId={loungeGroupId} />
-            <AlbumPanel token={token} groupId={loungeGroupId} />
-            <MyGroupsPanel groups={groups} />
+            <AlbumPanel token={token} groupId={loungeGroupId} refreshKey={albumRefreshKey} />
+            <PopularGroupsPanel token={token} />
           </>
         )}
       </aside>

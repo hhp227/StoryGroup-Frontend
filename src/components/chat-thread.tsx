@@ -4,7 +4,17 @@ import { useCallback } from "react";
 import { deleteMessage, getUserIdFromToken, listChatReads, listMessages, markChatRead, sendMessage, type MessageAttachment } from "@/lib/api";
 import { MessageThread } from "@/components/message-thread";
 
-export function ChatThread({ token, groupId, chatRoomId }: { token: string; groupId: number; chatRoomId: number }) {
+export function ChatThread({
+  token,
+  groupId,
+  chatRoomId,
+  onStartCall,
+}: {
+  token: string;
+  groupId: number;
+  chatRoomId: number;
+  onStartCall?: (video: boolean) => void;
+}) {
   const myUserId = getUserIdFromToken(token);
 
   const fetchMessages = useCallback(
@@ -36,6 +46,7 @@ export function ChatThread({ token, groupId, chatRoomId }: { token: string; grou
       onSend={onSend}
       onDelete={onDelete}
       onMarkRead={onMarkRead}
+      onStartCall={onStartCall}
     />
   );
 }

@@ -10,7 +10,16 @@ const PREVIEW_COUNT = 4;
 // 사이드바 앨범 패널(B안): 별도 앨범 엔티티 없이 그룹 게시글 첨부 사진을 모아 보여주는 파생 뷰.
 // 라운지도 그룹이라 홈/그룹 메인이 이 컴포넌트 하나를 groupId만 바꿔 공유한다.
 // 사진이 없으면 아무것도 렌더하지 않는다 — 빈 카드로 자리를 차지하지 않게.
-export function AlbumPanel({ token, groupId }: { token: string; groupId: number }) {
+export function AlbumPanel({
+  token,
+  groupId,
+  refreshKey = 0,
+}: {
+  token: string;
+  groupId: number;
+  // 파생 뷰라 원본(게시글 첨부)이 바뀌면 다시 불러와야 한다 — 부모가 이 값을 올리면 재조회.
+  refreshKey?: number;
+}) {
   const [data, setData] = useState<GroupPhotosPage | null>(null);
 
   useEffect(() => {
@@ -23,7 +32,7 @@ export function AlbumPanel({ token, groupId }: { token: string; groupId: number 
     return () => {
       cancelled = true;
     };
-  }, [token, groupId]);
+  }, [token, groupId, refreshKey]);
 
   if (!data || data.totalCount === 0) return null;
 

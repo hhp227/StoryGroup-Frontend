@@ -11,11 +11,18 @@ import { useAuth } from "./auth-provider";
 const CALL_BANNER_TIMEOUT_MS = 30_000;
 
 export function AppHeader() {
-  const { accessToken, isReady, logout } = useAuth();
+  const { accessToken, isReady } = useAuth();
   const router = useRouter();
   const [unreadCount, setUnreadCount] = useState(0);
-  // DM 통화 벨울림(CALL_INVITE) — 헤더는 전역이라 어느 화면에서든 배너를 띄울 수 있다.
-  const [incomingCall, setIncomingCall] = useState<{ chatRoomId: number; fromUserName: string } | null>(null);
+  // 통화 벨울림(CALL_INVITE, DM·그룹 방) — 헤더는 전역이라 어느 화면에서든 배너를 띄울 수 있다.
+  const [incomingCall, setIncomingCall] = useState<{
+    chatRoomId: number;
+    fromUserName: string;
+    groupId?: number | null;
+    roomName?: string | null;
+    // false면 보이스톡(모바일 발신) — 배너 문구만 구분한다(웹 통화 UI는 영상 단일)
+    video?: boolean;
+  } | null>(null);
   const callBannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refetchUnread = useCallback(() => {
@@ -37,9 +44,17 @@ export function AppHeader() {
       setUnreadCount((c) => c + 1);
       return;
     }
+    // CHAT_MESSAGE(2026-07-29부터 이 큐로 옴)·PRESENCE_CHANGED가 통화 배너로 오인되지 않게 명시 가드
+    if (event.type !== "CALL_INVITE") return;
     // CALL_INVITE — 같은 사람이 다시 걸면 배너/타이머를 갱신한다.
     if (callBannerTimerRef.current) clearTimeout(callBannerTimerRef.current);
-    setIncomingCall({ chatRoomId: event.chatRoomId, fromUserName: event.fromUserName });
+    setIncomingCall({
+      chatRoomId: event.chatRoomId,
+      fromUserName: event.fromUserName,
+      groupId: event.groupId,
+      roomName: event.roomName,
+      video: event.video,
+    });
     callBannerTimerRef.current = setTimeout(() => setIncomingCall(null), CALL_BANNER_TIMEOUT_MS);
   });
 
@@ -52,10 +67,15 @@ export function AppHeader() {
 
   function acceptCall() {
     if (!incomingCall) return;
-    const roomId = incomingCall.chatRoomId;
+    const { chatRoomId: roomId, groupId } = incomingCall;
     dismissCall();
-    // ?call=1 — DM 화면이 마운트되면서 벨울림 없이 바로 통화에 합류한다(받는 쪽).
-    router.push(`/dm/${roomId}?call=1`);
+    // ?call=1 — 통화 화면이 마운트되면서 벨울림 없이 바로 통화에 합류한다(받는 쪽).
+    // 그룹 방이면 그룹 채팅 페이지의 해당 방으로(페이스톡 전환), DM이면 기존 DM 화면으로.
+    if (groupId != null) {
+      router.push(`/groups/${groupId}/chat?room=${roomId}&call=1`);
+    } else {
+      router.push(`/dm/${roomId}?call=1`);
+    }
   }
 
   // 알림 화면에서 읽음 처리하면 그쪽에서 이 이벤트를 쏘고, 여기서 배지를 다시 센다.
@@ -66,11 +86,6 @@ export function AppHeader() {
 
   // 로그아웃 시 리셋은 불필요 — 배지는 로그인 상태에서만 렌더되고,
   // 재로그인하면 소켓 (재)연결 시 refetchUnread가 정확한 값으로 다시 채운다.
-
-  function handleLogout() {
-    logout();
-    router.push("/login");
-  }
 
   return (
     <header
@@ -107,7 +122,12 @@ export function AppHeader() {
           }}
         >
           <span style={{ fontSize: "1.2rem" }}>📞</span>
-          <span style={{ fontSize: "0.9rem", fontWeight: 600 }}>{incomingCall.fromUserName}님의 통화 요청</span>
+          <span style={{ fontSize: "0.9rem", fontWeight: 600 }}>
+            {/* video=false면 보이스톡(모바일 발신) — 문구만 구분, 합류 UI는 영상 통화 공용 */}
+            {incomingCall.roomName
+              ? `${incomingCall.roomName} — ${incomingCall.fromUserName}님의 ${incomingCall.video === false ? "보이스톡" : "통화"} 요청`
+              : `${incomingCall.fromUserName}님의 ${incomingCall.video === false ? "보이스톡" : "통화"} 요청`}
+          </span>
           <button className="btn btn-primary" type="button" onClick={acceptCall}>
             받기
           </button>
@@ -149,7 +169,7 @@ export function AppHeader() {
                 그룹
               </Link>
               <Link className="nav-link" href="/dm">
-                DM
+                채팅
               </Link>
               <Link className="nav-link" href="/search">
                 검색
@@ -181,15 +201,12 @@ export function AppHeader() {
           </Link>
 
           {isReady && (
+            // 로그아웃은 /settings의 계정 메뉴로 옮겼다(모바일 프로필 화면 미러) —
+            // 상시 노출할 만큼 자주 쓰는 동작이 아니고, 헤더 항목 수도 줄인다.
             accessToken ? (
-              <>
-                <Link className="nav-link" href="/profile">
-                  프로필
-                </Link>
-                <button className="nav-link" type="button" onClick={handleLogout}>
-                  로그아웃
-                </button>
-              </>
+              <Link className="nav-link" href="/settings/profile">
+                프로필
+              </Link>
             ) : (
               <>
                 <Link className="nav-link" href="/login">

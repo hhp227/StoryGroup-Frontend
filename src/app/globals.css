@@ -316,16 +316,31 @@ a {
 }
 .bubble-row {
   display: flex;
+  gap: 8px;
 }
 .bubble-row.mine {
   justify-content: flex-end;
+}
+/* 채팅 입력 영역 — 페이지가 스크롤돼도 항상 뷰포트 하단에 붙어 있는다. */
+.chat-composer {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  background: var(--paper);
+  padding: var(--sp-3) 0;
+  border-top: 1px solid var(--stone-border);
 }
 .bubble {
   padding: 10px 14px;
   border-radius: 16px;
   font-size: 0.9rem;
   line-height: 1.5;
-  max-width: 78%;
+  /* 폭 제한은 조상(메시지 컬럼)이 행 기준 %로 건다 — 여기서 %를 쓰면
+     shrink-to-fit 부모 기준으로 계산돼 자연 폭의 78%에서 항상 조기 줄바꿈된다. */
+  max-width: 100%;
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -338,4 +353,210 @@ a {
   background: var(--accent);
   color: var(--on-accent);
   border-bottom-right-radius: 4px;
+}
+
+/* 통화 진행 중 라이브 바 — 진행 중일 때만 메시지 목록 위에 나타난다(모바일 채팅방 미러).
+   상시 노출되던 "화상회의" 카드를 대체한다 — 통화 걸기는 입력창 첨부 패널이 맡는다. */
+.call-live-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-4);
+  border-radius: var(--radius-card);
+  background: var(--accent-soft);
+  font-size: 0.85rem;
+}
+.call-live-bar-text {
+  /* 이름이 길어도 한 줄을 유지한다 — 바가 두 줄이 되면 대화창을 다시 잠식한다 */
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.call-live-bar-join {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border: none;
+  border-radius: var(--radius-btn);
+  background: none;
+  color: var(--accent);
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.call-live-bar-join:hover {
+  background: var(--linen);
+}
+
+/* 첨부 패널 — 입력창 왼쪽 + 버튼이 위로 여는 팝오버(모바일 첨부 패널의 웹 대응) */
+.composer-attach {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.composer-attach-trigger {
+  /* 원이 찌그러지지 않게 폭·높이를 같이 고정한다(폼의 stretch 정렬을 따라가면 타원이 된다) */
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--stone-border);
+  background: var(--linen);
+  color: var(--ink-soft);
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s, color 0.15s, border-color 0.15s;
+}
+.composer-attach-trigger:hover:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.composer-attach-trigger.is-open {
+  /* 열린 상태에서는 +가 ×로 돌아간다 — 여는 버튼과 닫는 버튼이 따로 있으면 자리를 두 번 배운다 */
+  transform: rotate(45deg);
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+.composer-attach-trigger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.composer-attach-panel {
+  position: absolute;
+  bottom: calc(100% + var(--sp-2));
+  left: 0;
+  z-index: 20;
+  /* 이모지 8열(모바일과 같은 열 수)이 들어가는 폭. 좁은 화면에선 화면 밖으로 나가지 않게 줄인다. */
+  width: min(320px, calc(100vw - 2 * var(--sp-5)));
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-4);
+  border-radius: var(--radius-card);
+  border: 1px solid var(--stone-border);
+  background: var(--linen);
+  box-shadow: 0 12px 32px var(--shadow);
+  animation: composer-attach-rise 0.14s ease-out;
+}
+@keyframes composer-attach-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+.composer-attach-grid {
+  /* 모바일 첨부 패널과 같은 4열(5번째 항목부터 다음 줄) */
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--sp-3);
+}
+.composer-attach-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  transition: color 0.15s;
+}
+.composer-attach-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px solid var(--stone-border);
+  background: var(--paper);
+  font-size: 1.25rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+.composer-attach-item:hover {
+  color: var(--accent);
+}
+.composer-attach-item:hover .composer-attach-icon {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.composer-attach-back {
+  align-self: flex-start;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  color: var(--ink-faint);
+}
+.composer-attach-back:hover {
+  color: var(--accent);
+}
+.composer-emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.composer-emoji {
+  padding: 5px 0;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+  line-height: 1.3;
+  transition: background 0.12s;
+}
+.composer-emoji:hover {
+  background: var(--accent-soft);
+}
+@media (prefers-reduced-motion: reduce) {
+  .composer-attach-panel {
+    animation: none;
+  }
+  .composer-attach-trigger {
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+}
+
+/* 설정 허브 메뉴 행 - 마지막 행은 구분선 없이, hover 시 배경 강조 */
+.settings-row:last-child {
+  border-bottom: none !important;
+}
+.settings-row:hover {
+  background: var(--paper);
+}
+
+/* 약관/정책 문서 페이지 */
+.policy h2 {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  margin: var(--sp-6) 0 var(--sp-2);
+}
+.policy p,
+.policy li {
+  font-size: 0.9rem;
+  line-height: 1.7;
+  color: var(--ink-soft);
+}
+.policy ul,
+.policy ol {
+  padding-left: var(--sp-5);
+  margin: var(--sp-2) 0;
+}
+.policy strong {
+  color: var(--ink);
 }

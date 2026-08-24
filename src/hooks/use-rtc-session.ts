@@ -63,7 +63,13 @@ export function useRtcSession(
   roomId: number,
   enabled: boolean,
   // DM 통화 걸기: 첫 연결 성공 시 상대에게 CALL_INVITE를 한 번 보낸다(D6).
-  ringOnJoin = false
+  ringOnJoin = false,
+  // 보이스톡: 카메라를 아예 열지 않는다 — 권한 요청도, 카메라 표시등도 없어야 한다.
+  // 오디오만 잡으므로 기존 "카메라 없는 기기" 폴백과 같은 경로를 탄다(비디오 m-line 없음).
+  // 대신 통화 중 카메라 켜기는 불가능하다(video sender가 없어 재협상 없이는 못 붙인다, D9) —
+  // 영상으로 바꾸려면 끊고 페이스톡으로 다시 건다. ringOnJoin과 같이 통화가 idle일 때만
+  // 바뀌는 값이라 세션 이펙트 의존성에 그대로 넣어도 안전하다.
+  startCamOff = false
 ): RtcSession {
   const [status, setStatus] = useState<RtcStatus>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -208,7 +214,9 @@ export function useRtcSession(
     }
 
     // 카메라 없는 기기는 오디오 전용으로라도 통화에 참여시킨다.
+    // 보이스톡도 같은 경로 — 카메라를 요청하지 않으므로 권한 창도 표시등도 뜨지 않는다.
     async function acquireMedia(): Promise<MediaStream> {
+      if (startCamOff) return await navigator.mediaDevices.getUserMedia({ audio: true });
       try {
         return await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       } catch {
@@ -239,6 +247,8 @@ export function useRtcSession(
         iceServersRef.current = iceServers;
         localStreamRef.current = stream;
         setLocalStream(stream);
+        // 보이스톡이면 비디오 트랙 자체가 없어 hasVideo=false — 통화 화면의 카메라 토글이
+        // 자동으로 숨는다(켤 수 없는 버튼을 보여주지 않는다).
         const videoAvailable = stream.getVideoTracks().length > 0;
         setHasVideo(videoAvailable);
         setMicOn(true);
@@ -264,7 +274,12 @@ export function useRtcSession(
             setStatus("in-call");
             if (ringOnJoin && !ringSent) {
               ringSent = true;
-              client.publish({ destination: rtcInviteDestination(roomId), body: "" });
+              // 보이스톡/페이스톡 구분을 실어 보낸다 — 빈 바디는 서버가 페이스톡으로 간주하므로
+              // 보이스톡으로 걸어도 상대 배너가 "페이스톡"으로 뜬다(CallInviteRequest.video).
+              client.publish({
+                destination: rtcInviteDestination(roomId),
+                body: JSON.stringify({ video: !startCamOff }),
+              });
             }
           },
           onWebSocketClose: () => {
@@ -304,7 +319,7 @@ export function useRtcSession(
       setStatus("idle");
       setError(null);
     };
-  }, [enabled, token, kind, roomId, myUserId, ringOnJoin]);
+  }, [enabled, token, kind, roomId, myUserId, ringOnJoin, startCamOff]);
 
   const toggleMic = () => {
     const stream = localStreamRef.current;

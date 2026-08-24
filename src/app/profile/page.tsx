@@ -1,25 +1,15 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/components/auth-provider";
-import { PasswordForm } from "@/components/password-form";
-import { ProfileForm } from "@/components/profile-form";
 
+// 프로필/비밀번호가 설정 하위 페이지로 옮겨가면서 기존 링크 호환용 리다이렉트만 남긴다.
 export default function ProfilePage() {
-  const { accessToken, isReady } = useAuth();
   const router = useRouter();
 
-  if (!isReady) return null;
-  if (!accessToken) {
-    router.push("/login");
-    return null;
-  }
+  useEffect(() => {
+    router.replace("/settings/profile");
+  }, [router]);
 
-  return (
-    <div className="container page page-form" style={{ display: "flex", flexDirection: "column", gap: "var(--sp-5)" }}>
-      <h1 style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem" }}>프로필</h1>
-      <ProfileForm token={accessToken} />
-      <PasswordForm token={accessToken} />
-    </div>
-  );
+  return null;
 }

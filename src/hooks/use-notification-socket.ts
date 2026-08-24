@@ -7,7 +7,8 @@ import { NOTIFICATIONS_DESTINATION, wsUrl, type NotificationQueueEvent } from "@
 // 개인 알림 큐 구독 훅(헤더 배지용). useChatSocket과 같은 골격이지만
 // - 화면 어디서든 하나만 떠 있는 전역 성격이라 상태(연결중 표시)는 노출하지 않고
 // - (재)연결 때마다 onConnect로 미확인 개수를 REST로 다시 세게 한다(끊긴 사이 공백 복구).
-// 이 큐에는 알림(NOTIFICATION) 외에 DM 통화 벨울림(CALL_INVITE)도 실려 온다 — 호출부가 type으로 분기.
+// 이 큐에는 알림(NOTIFICATION) 외에 통화 벨울림(CALL_INVITE)·채팅 뱃지(CHAT_MESSAGE)·
+// 친구 프레즌스(PRESENCE_CHANGED)도 실려 온다 — 호출부가 type으로 분기.
 export function useNotificationSocket(
   token: string | null,
   onConnect: () => void,

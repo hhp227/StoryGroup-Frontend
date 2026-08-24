@@ -1,16 +1,25 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useImperativeHandle, useState, type RefObject } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useRtcSession } from "@/hooks/use-rtc-session";
 import { VideoCallPanel } from "@/components/video-call-panel";
+import type { CallSessionHandle } from "@/components/group-call-session";
 
 // DM 1:1 통화 — 시그널링 방은 DM 채팅방 id를 그대로 쓴다(chat-rooms/{id}, Phase 7 설계 문서 D2).
 // "calling"(내가 걺 — 첫 연결 때 상대에게 CALL_INVITE 벨울림)과
 // "joined"(받는 쪽 — 헤더 배너 수락으로 ?call=1 진입, 벨울림 없음)를 구분한다.
 type CallMode = "idle" | "calling" | "joined";
 
-function DmCallInner({ token, chatRoomId }: { token: string; chatRoomId: number }) {
+function DmCallInner({
+  token,
+  chatRoomId,
+  handleRef,
+}: {
+  token: string;
+  chatRoomId: number;
+  handleRef?: RefObject<CallSessionHandle | null>;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   // 받는 쪽 자동 합류: 헤더의 "받기"가 ?call=1로 이 화면을 연다. router.push 클라이언트 내비게이션은
@@ -19,7 +28,23 @@ function DmCallInner({ token, chatRoomId }: { token: string; chatRoomId: number 
   // 0→1로 바뀜)은 부모가 call 파라미터를 key에 걸어 리마운트시켜서 이 initializer가 다시 돈다.
   const [mode, setMode] = useState<CallMode>(() => (searchParams.get("call") === "1" ? "joined" : "idle"));
 
-  const session = useRtcSession(token, "chat-rooms", chatRoomId, mode !== "idle", mode === "calling");
+  // 보이스톡이면 카메라를 끈 채로 시작한다. 통화가 idle일 때만 바뀌므로 세션을 다시 태우지 않는다.
+  const [wantVideo, setWantVideo] = useState(true);
+
+  const session = useRtcSession(token, "chat-rooms", chatRoomId, mode !== "idle", mode === "calling", !wantVideo);
+
+  // 입력창 첨부 패널의 보이스톡/페이스톡이 부르는 진입점. 통화 중이면 무시한다(재시작 방지).
+  useImperativeHandle(
+    handleRef,
+    () => ({
+      start: (video: boolean) => {
+        if (mode !== "idle") return;
+        setWantVideo(video);
+        setMode("calling");
+      },
+    }),
+    [mode]
+  );
 
   function hangUp() {
     setMode("idle");
@@ -27,13 +52,8 @@ function DmCallInner({ token, chatRoomId }: { token: string; chatRoomId: number 
     if (searchParams.get("call") === "1") router.replace(`/dm/${chatRoomId}`);
   }
 
-  if (mode === "idle") {
-    return (
-      <button className="btn btn-secondary" type="button" onClick={() => setMode("calling")}>
-        📞 통화 걸기
-      </button>
-    );
-  }
+  // 통화 걸기는 입력창 첨부 패널(보이스톡/페이스톡)로 옮겼다 — 통화 중이 아니면 아무것도 그리지 않는다.
+  if (mode === "idle") return null;
 
   return (
     <div className="card" style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
@@ -48,7 +68,7 @@ function DmCallInner({ token, chatRoomId }: { token: string; chatRoomId: number 
 }
 
 // useSearchParams는 Suspense 경계가 필요하다(로그인 페이지와 같은 관례).
-export function DmCall(props: { token: string; chatRoomId: number }) {
+export function DmCall(props: { token: string; chatRoomId: number; handleRef?: RefObject<CallSessionHandle | null> }) {
   return (
     <Suspense>
       <DmCallInner {...props} />

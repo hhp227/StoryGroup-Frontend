@@ -4,7 +4,15 @@ import { useCallback } from "react";
 import { deleteDirectMessage, getUserIdFromToken, listDirectMessages, listDirectReads, markDirectRead, sendDirectMessage, type MessageAttachment } from "@/lib/api";
 import { MessageThread } from "@/components/message-thread";
 
-export function DirectMessageThread({ token, chatRoomId }: { token: string; chatRoomId: number }) {
+export function DirectMessageThread({
+  token,
+  chatRoomId,
+  onStartCall,
+}: {
+  token: string;
+  chatRoomId: number;
+  onStartCall?: (video: boolean) => void;
+}) {
   const myUserId = getUserIdFromToken(token);
 
   const fetchMessages = useCallback(
@@ -36,6 +44,7 @@ export function DirectMessageThread({ token, chatRoomId }: { token: string; chat
       onSend={onSend}
       onDelete={onDelete}
       onMarkRead={onMarkRead}
+      onStartCall={onStartCall}
     />
   );
 }

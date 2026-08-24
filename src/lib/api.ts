@@ -1,3 +1,5 @@
+import { maybeCompressImage } from "./image-compressor";
+
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export class ApiError extends Error {
@@ -97,7 +99,8 @@ export function logoutUser(refreshToken: string) {
   });
 }
 
-export type GroupJoinType = "PRIVATE" | "INVITE_ONLY";
+// 레거시 의미 복원: AUTO_APPROVE=자동 승인(탐색에서 바로 가입), APPROVAL_REQUIRED=승인제(가입 신청 후 승인).
+export type GroupJoinType = "AUTO_APPROVE" | "APPROVAL_REQUIRED";
 export type GroupRole = "OWNER" | "ADMIN" | "MEMBER";
 
 export interface Group {
@@ -119,20 +122,239 @@ export function getGroup(token: string, groupId: number) {
   return request<Group>(`/api/groups/${groupId}`, { token });
 }
 
-export function createGroup(token: string, name: string, description: string | null, image: string | null) {
+export function createGroup(
+  token: string,
+  name: string,
+  description: string | null,
+  image: string | null,
+  joinType: GroupJoinType = "AUTO_APPROVE",
+) {
   return request<Group>("/api/groups", {
     method: "POST",
     token,
-    body: JSON.stringify({ name, description, image }),
+    body: JSON.stringify({ name, description, image, joinType }),
   });
 }
 
-export function updateGroup(token: string, groupId: number, name: string, description: string | null, image: string | null) {
+export function updateGroup(
+  token: string,
+  groupId: number,
+  name: string,
+  description: string | null,
+  image: string | null,
+  joinType?: GroupJoinType,
+) {
   return request<Group>(`/api/groups/${groupId}`, {
     method: "PATCH",
     token,
-    body: JSON.stringify({ name, description, image }),
+    body: JSON.stringify({ name, description, image, ...(joinType ? { joinType } : {}) }),
   });
+}
+
+// ---- 그룹 탐색/가입 ----
+
+export type MembershipStatus = "NONE" | "PENDING" | "MEMBER";
+
+export interface DiscoverGroup {
+  id: number;
+  name: string;
+  description: string | null;
+  image: string | null;
+  joinType: GroupJoinType;
+  memberCount: number;
+  membership: MembershipStatus;
+  createdAt: string;
+}
+
+export function discoverGroups(
+  token: string,
+  query = "",
+  page = 0,
+  size = 20,
+  sort: "recent" | "popular" = "recent",
+) {
+  return request<DiscoverGroup[]>(
+    `/api/groups/discover?query=${encodeURIComponent(query)}&sort=${sort}&page=${page}&size=${size}`,
+    { token },
+  );
+}
+
+// 자동 승인 그룹이면 JOINED + 가입된 그룹, 승인제면 REQUESTED + group=null.
+export interface JoinGroupResult {
+  status: "JOINED" | "REQUESTED";
+  group: Group | null;
+}
+
+export function joinGroup(token: string, groupId: number) {
+  return request<JoinGroupResult>(`/api/groups/${groupId}/join`, { method: "POST", token });
+}
+
+export function cancelJoinRequest(token: string, groupId: number) {
+  return request<void>(`/api/groups/${groupId}/join`, { method: "DELETE", token });
+}
+
+export function joinGroupByCode(token: string, code: string) {
+  return request<Group>(`/api/groups/join/${encodeURIComponent(code)}`, { method: "POST", token });
+}
+
+export interface JoinRequest {
+  userId: number;
+  name: string;
+  profileImg: string | null;
+  requestedAt: string;
+}
+
+export function listJoinRequests(token: string, groupId: number) {
+  return request<JoinRequest[]>(`/api/groups/${groupId}/join-requests`, { token });
+}
+
+export function approveJoinRequest(token: string, groupId: number, userId: number) {
+  return request<void>(`/api/groups/${groupId}/join-requests/${userId}/approve`, { method: "POST", token });
+}
+
+// ---- 사용자 차단 ----
+// 차단하면 그 사용자의 게시글/댓글/채팅/파일이 내 화면에서 숨겨지고, DM은 양방향으로 막힌다.
+
+export interface BlockedUser {
+  userId: number;
+  name: string;
+  profileImg: string | null;
+  blockedAt: string;
+}
+
+export function listBlockedUsers(token: string) {
+  return request<BlockedUser[]>("/api/users/me/blocks", { token });
+}
+
+export function blockUser(token: string, userId: number) {
+  return request<void>(`/api/users/${userId}/block`, { method: "POST", token });
+}
+
+export function unblockUser(token: string, userId: number) {
+  return request<void>(`/api/users/${userId}/block`, { method: "DELETE", token });
+}
+
+// ---- 친구 ----
+// 단방향 등록(즐겨찾기 성격, 승인 절차 없음). 검색 페이지 친구 섹션과 사용자 검색 결과가 진입점.
+
+export interface Friend {
+  userId: number;
+  name: string;
+  profileImg: string | null;
+  statusMessage: string | null;
+  friendedAt: string;
+  // 전역 프레즌스 스냅샷 — 구서버(필드 없음) 방어로 옵셔널. 실시간 전환은 PRESENCE_CHANGED 이벤트
+  online?: boolean;
+}
+
+export function listFriends(token: string) {
+  return request<Friend[]>("/api/users/me/friends", { token });
+}
+
+export function addFriend(token: string, userId: number) {
+  return request<void>(`/api/users/${userId}/friend`, { method: "POST", token });
+}
+
+export function removeFriend(token: string, userId: number) {
+  return request<void>(`/api/users/${userId}/friend`, { method: "DELETE", token });
+}
+
+// ---- 신고 / 공개 프로필 ----
+
+// 사용자/게시글 신고 공통 처리 상태. 같은 대상에 대한 "대기중" 신고는 1건만(중복 409
+// ALREADY_REPORTED), 처리(확인/기각)된 뒤에는 재신고할 수 있다.
+export type ReportStatus = "PENDING" | "RESOLVED" | "DISMISSED";
+
+export function reportUser(token: string, userId: number, reason?: string) {
+  return request<void>(`/api/users/${userId}/report`, {
+    method: "POST",
+    body: JSON.stringify({ reason: reason ?? null }),
+    token,
+  });
+}
+
+export function reportPost(token: string, groupId: number, postId: number, reason?: string) {
+  return request<void>(`/api/groups/${groupId}/posts/${postId}/report`, {
+    method: "POST",
+    body: JSON.stringify({ reason: reason ?? null }),
+    token,
+  });
+}
+
+// 그룹 신고함(방장/부방장 전용) 한 행 - 신고된 게시글 요약을 함께 내려준다.
+export interface PostReport {
+  id: number;
+  postId: number;
+  postTextPreview: string;
+  postAuthorId: number;
+  postAuthorName: string;
+  reporterId: number;
+  reporterName: string;
+  reason: string | null;
+  status: ReportStatus;
+  createdAt: string;
+  processedAt: string | null;
+}
+
+export function listGroupReports(token: string, groupId: number, status?: ReportStatus) {
+  const query = status ? `?status=${status}` : "";
+  return request<PostReport[]>(`/api/groups/${groupId}/reports${query}`, { token });
+}
+
+// 처리는 상태 기록만 - 게시글 삭제 등 실제 조치는 기존 기능으로 한다. 재처리(확인<->기각) 가능.
+export function processGroupReport(token: string, groupId: number, reportId: number, status: "RESOLVED" | "DISMISSED") {
+  return request<PostReport>(`/api/groups/${groupId}/reports/${reportId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+    token,
+  });
+}
+
+// 운영자(Profile.isAdmin) 전용 사용자 신고 관리 한 행.
+export interface UserReport {
+  id: number;
+  reporterId: number;
+  reporterName: string;
+  reportedId: number;
+  reportedName: string;
+  reportedProfileImg: string | null;
+  reason: string | null;
+  status: ReportStatus;
+  createdAt: string;
+  processedAt: string | null;
+  // 피신고자의 누적 신고 수(상태 무관) - 상습 피신고자 식별용.
+  reportedTotalCount: number;
+}
+
+export function listUserReports(token: string, status?: ReportStatus) {
+  const query = status ? `?status=${status}` : "";
+  return request<UserReport[]>(`/api/admin/user-reports${query}`, { token });
+}
+
+export function processUserReport(token: string, reportId: number, status: "RESOLVED" | "DISMISSED") {
+  return request<UserReport>(`/api/admin/user-reports/${reportId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+    token,
+  });
+}
+
+// 다른 사용자가 보는 공개 프로필 — 이메일은 안 내려온다(본인용 getMyProfile과 다름).
+export interface PublicProfile {
+  id: number;
+  name: string;
+  profileImg: string | null;
+  bio: string | null;
+  statusMessage: string | null;
+  createdAt: string;
+}
+
+export function getPublicProfile(token: string, userId: number) {
+  return request<PublicProfile>(`/api/users/${userId}`, { token });
+}
+
+export function rejectJoinRequest(token: string, groupId: number, userId: number) {
+  return request<void>(`/api/groups/${groupId}/join-requests/${userId}`, { method: "DELETE", token });
 }
 
 export function deleteGroup(token: string, groupId: number) {
@@ -157,7 +379,8 @@ export interface Post {
   authorProfileImg: string | null;
   text: string;
   images: PostImage[];
-  videos: PostVideo[];
+  // videos 미배포 백엔드는 이 필드를 아예 안 내려주므로 옵셔널로 받는다.
+  videos?: PostVideo[];
   isNotice: boolean;
   createdAt: string;
 }
@@ -176,6 +399,17 @@ export function createPost(token: string, groupId: number, text: string, images?
 
 export function getPost(token: string, groupId: number, postId: number) {
   return request<Post>(`/api/groups/${groupId}/posts/${postId}`, { token });
+}
+
+// images/videos는 서버가 3상태로 받는다(생략=유지, 빈 배열=전부 삭제, 값=전체 교체) — 폼이 들고 있는
+// 목록을 항상 통째로 보내 "안 건드림"과 "다 지움"을 구분할 일이 없게 한다. videos를 안 넘기는 호출부는
+// 동영상을 유지한다(기존 계약 그대로 — 안 보내야 다른 데서 올린 동영상이 살아남는다).
+export function updatePost(token: string, groupId: number, postId: number, text: string, images: string[], videos?: string[]) {
+  return request<Post>(`/api/groups/${groupId}/posts/${postId}`, {
+    method: "PATCH",
+    token,
+    body: JSON.stringify(videos === undefined ? { text, images } : { text, images, videos }),
+  });
 }
 
 export function deletePost(token: string, groupId: number, postId: number) {
@@ -258,6 +492,20 @@ export function createChatRoom(token: string, groupId: number, name: string) {
   });
 }
 
+// 채팅 허브(/dm) 그룹 채팅 섹션 한 줄: 내가 속한 그룹의 채팅방(그룹명 포함).
+// 라운지는 전원 자동 포함 그룹이라 백엔드가 제외하고, 그룹명 → 방 생성 순으로 정렬해서 내려준다.
+export interface GroupChatRoom {
+  id: number;
+  groupId: number;
+  groupName: string;
+  name: string;
+  createdAt: string;
+}
+
+export function listMyGroupChatRooms(token: string) {
+  return request<GroupChatRoom[]>("/api/chat-rooms", { token });
+}
+
 // 메시지 첨부(이미지/파일) — 메시지당 1개. url은 업로드 API가 돌려준 공개 URL.
 export interface MessageAttachment {
   url: string;
@@ -315,20 +563,10 @@ export function listChatReads(token: string, groupId: number, chatRoomId: number
   return request<ReadPosition[]>(`/api/groups/${groupId}/chat-rooms/${chatRoomId}/reads`, { token });
 }
 
-export interface Meeting {
-  id: number;
-  groupId: number;
-  hostId: number;
-  startedAt: string;
-  endedAt: string | null;
-}
-
-export interface Participant {
+// 통화 로스터 스냅숏(GET /api/rtc/chat-rooms/{id}/roster) 항목 — "통화 중 N명" 미리보기용(페이스톡 전환).
+export interface RtcRosterPeer {
   userId: number;
-  authorName: string;
-  authorProfileImg: string | null;
-  joinedAt: string;
-  leftAt: string | null;
+  userName: string;
 }
 
 export interface Member {
@@ -403,32 +641,9 @@ export function listDirectReads(token: string, chatRoomId: number) {
   return request<ReadPosition[]>(`/api/dm/${chatRoomId}/reads`, { token });
 }
 
-export function listMeetings(token: string, groupId: number, page = 0, size = 20) {
-  return request<Meeting[]>(`/api/groups/${groupId}/meetings?page=${page}&size=${size}`, { token });
-}
-
-export function createMeeting(token: string, groupId: number) {
-  return request<Meeting>(`/api/groups/${groupId}/meetings`, { method: "POST", token });
-}
-
-export function getMeeting(token: string, groupId: number, meetingId: number) {
-  return request<Meeting>(`/api/groups/${groupId}/meetings/${meetingId}`, { token });
-}
-
-export function joinMeeting(token: string, groupId: number, meetingId: number) {
-  return request<void>(`/api/groups/${groupId}/meetings/${meetingId}/join`, { method: "POST", token });
-}
-
-export function leaveMeeting(token: string, groupId: number, meetingId: number) {
-  return request<void>(`/api/groups/${groupId}/meetings/${meetingId}/leave`, { method: "POST", token });
-}
-
-export function endMeeting(token: string, groupId: number, meetingId: number) {
-  return request<void>(`/api/groups/${groupId}/meetings/${meetingId}/end`, { method: "POST", token });
-}
-
-export function listParticipants(token: string, groupId: number, meetingId: number) {
-  return request<Participant[]>(`/api/groups/${groupId}/meetings/${meetingId}/participants`, { token });
+// 통화 로스터 스냅숏 — rtc 토픽 구독은 곧 입장이라, 입장 없이 진행 여부만 보는 읽기 경로(페이스톡 전환).
+export function listRtcRoster(token: string, chatRoomId: number) {
+  return request<RtcRosterPeer[]>(`/api/rtc/chat-rooms/${chatRoomId}/roster`, { token });
 }
 
 // 필드명이 브라우저 RTCIceServer와 같다 — 서버가 STUN(+설정 시 TURN 단기 자격증명)을 내려준다(Phase 7 D10).
@@ -508,9 +723,9 @@ export function uploadFile(token: string, groupId: number, name: string, url: st
 
 // 이미지 전용 범용 업로드 - 공개 URL만 돌려받아 게시글(images)/프로필(profileImg)/그룹(image)의
 // 기존 URL 문자열 필드에 그대로 넣는다(API 계약 무변경).
-export function uploadImage(token: string, file: File) {
+export async function uploadImage(token: string, file: File) {
   const form = new FormData();
-  form.append("file", file);
+  form.append("file", await maybeCompressImage(file)); // 이미지 투명 압축(§4) — GIF/실패는 원본
   return request<{ url: string }>("/api/images", { method: "POST", token, body: form });
 }
 
@@ -524,9 +739,9 @@ export function uploadVideo(token: string, file: File) {
 
 // 일반 파일 범용 업로드(/api/images의 파일판, MIME 제한 없음) — 채팅 첨부용.
 // 응답 필드가 MessageAttachment와 같은 모양이라 그대로 메시지 전송에 넣으면 된다.
-export function uploadChatFile(token: string, file: File) {
+export async function uploadChatFile(token: string, file: File) {
   const form = new FormData();
-  form.append("file", file);
+  form.append("file", await maybeCompressImage(file)); // 비이미지는 함수가 원본을 그대로 돌려준다
   return request<MessageAttachment>("/api/files", { method: "POST", token, body: form });
 }
 
@@ -545,7 +760,18 @@ export function deleteFile(token: string, groupId: number, fileId: number) {
   return request<void>(`/api/groups/${groupId}/files/${fileId}`, { method: "DELETE", token });
 }
 
-export type NotificationType = "NEW_POST" | "COMMENT" | "LIKE" | "MENTION" | "CHAT" | "MEETING_STARTED" | "NOTICE" | "INVITE";
+export type NotificationType =
+  | "NEW_POST"
+  | "COMMENT"
+  | "LIKE"
+  | "MENTION"
+  | "CHAT"
+  | "MEETING_STARTED"
+  | "NOTICE"
+  | "INVITE"
+  | "JOIN_REQUEST"
+  | "JOIN_APPROVED"
+  | "JOIN_REJECTED";
 export type NotificationTargetType = "POST" | "REPLY" | "MESSAGE" | "MEETING" | "GROUP";
 
 export interface AppNotification {
@@ -580,6 +806,8 @@ export interface Profile {
   profileImg: string | null;
   bio: string | null;
   statusMessage: string | null;
+  // 앱 운영자 여부 - 설정의 운영자 메뉴(사용자 신고 관리) 노출용. 실제 인가는 서버가 다시 검사한다.
+  isAdmin: boolean;
 }
 
 export function getMyProfile(token: string) {
@@ -654,6 +882,95 @@ export interface SearchResults {
 
 export function search(token: string, query: string, limit = 10) {
   return request<SearchResults>(`/api/search?query=${encodeURIComponent(query)}&limit=${limit}`, { token });
+}
+
+// 그룹 일정. RSVP 집계와 내 응답 상태(myRsvp)까지 한 번에 내려온다.
+export type RsvpStatus = "GOING" | "MAYBE" | "NOT_GOING";
+
+export interface GroupEvent {
+  id: number;
+  groupId: number;
+  userId: number;
+  authorName: string;
+  authorProfileImg: string | null;
+  title: string;
+  description: string | null;
+  location: string | null;
+  startsAt: string;
+  endsAt: string | null;
+  createdAt: string;
+  goingCount: number;
+  maybeCount: number;
+  notGoingCount: number;
+  myRsvp: RsvpStatus | null;
+}
+
+export interface EventAttendee {
+  userId: number;
+  name: string;
+  profileImg: string | null;
+  status: RsvpStatus;
+}
+
+export interface GroupEventDetail {
+  event: GroupEvent;
+  attendees: EventAttendee[];
+}
+
+export interface CreateEventInput {
+  title: string;
+  description?: string;
+  location?: string;
+  startsAt: string;
+  endsAt?: string | null;
+}
+
+export function createEvent(token: string, groupId: number, input: CreateEventInput) {
+  return request<GroupEvent>(`/api/groups/${groupId}/events`, {
+    method: "POST",
+    body: JSON.stringify(input),
+    token,
+  });
+}
+
+// 캘린더 범위 조회: starts_at 기준 [from, to). 월 뷰가 월초~다음달 초를 넘긴다.
+export function listEvents(token: string, groupId: number, from: string, to: string) {
+  return request<GroupEvent[]>(
+    `/api/groups/${groupId}/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+    { token }
+  );
+}
+
+export function listUpcomingEvents(token: string, groupId: number, size = 3) {
+  return request<GroupEvent[]>(`/api/groups/${groupId}/events/upcoming?size=${size}`, { token });
+}
+
+export function getEvent(token: string, groupId: number, eventId: number) {
+  return request<GroupEventDetail>(`/api/groups/${groupId}/events/${eventId}`, { token });
+}
+
+export function updateEvent(token: string, groupId: number, eventId: number, input: CreateEventInput) {
+  return request<GroupEvent>(`/api/groups/${groupId}/events/${eventId}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+    token,
+  });
+}
+
+export function deleteEvent(token: string, groupId: number, eventId: number) {
+  return request<void>(`/api/groups/${groupId}/events/${eventId}`, { method: "DELETE", token });
+}
+
+export function rsvpEvent(token: string, groupId: number, eventId: number, status: RsvpStatus) {
+  return request<GroupEvent>(`/api/groups/${groupId}/events/${eventId}/rsvp`, {
+    method: "PUT",
+    body: JSON.stringify({ status }),
+    token,
+  });
+}
+
+export function cancelRsvp(token: string, groupId: number, eventId: number) {
+  return request<GroupEvent>(`/api/groups/${groupId}/events/${eventId}/rsvp`, { method: "DELETE", token });
 }
 
 // JWT payload는 서버가 서명한 것을 그대로 들고 있는 클라이언트가 읽는 것뿐이라 디코딩만(검증 아님) 해도 안전하다.

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ApiError, createPost, listPosts, uploadImage, uploadVideo, type Post } from "@/lib/api";
+import { ApiError, createPost, listPosts, uploadImage, type Post } from "@/lib/api";
+import { attachVideoWithCompression } from "@/lib/attach-video";
 import { PostCard } from "./post-card";
 
 const PAGE_SIZE = 20;
@@ -13,7 +14,16 @@ function appendUnique(prev: Post[], next: Post[]): Post[] {
   return [...prev, ...next.filter((p) => !seen.has(p.id))];
 }
 
-export function GroupPostFeed({ token, groupId }: { token: string; groupId: number }) {
+export function GroupPostFeed({
+  token,
+  groupId,
+  onPostCreated,
+}: {
+  token: string;
+  groupId: number;
+  // 작성 성공을 부모에게 알린다 — 사이드바 앨범 패널처럼 게시글의 파생 뷰를 갱신할 때 쓴다.
+  onPostCreated?: (post: Post) => void;
+}) {
   const [posts, setPosts] = useState<Post[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
@@ -27,6 +37,8 @@ export function GroupPostFeed({ token, groupId }: { token: string; groupId: numb
   const [images, setImages] = useState<string[]>([]);
   const [videos, setVideos] = useState<string[]>([]);
   const [isAttaching, setIsAttaching] = useState(false);
+  // 첨부 파이프라인 상태 문구("압축 중 n%"/"업로드 중...") — 동영상 압축(§2) 진행률 표시
+  const [attachStatus, setAttachStatus] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -65,6 +77,7 @@ export function GroupPostFeed({ token, groupId }: { token: string; groupId: numb
 
   // 첨부 즉시 업로드해서 URL을 모아두고, 게시할 때는 URL 목록만 보낸다(기존 API 계약 그대로).
   // 이미지/동영상은 업로드 엔드포인트와 게시글 필드(images/videos)가 달라 MIME으로 갈라 보낸다.
+  // 동영상은 5MB 목표 압축을 거친다(§2) — 거부/실패 문구는 Error.message가 그대로 표출된다.
   async function handleAttach(files: FileList | null) {
     if (!files || files.length === 0) return;
     setFormError(null);
@@ -72,17 +85,19 @@ export function GroupPostFeed({ token, groupId }: { token: string; groupId: numb
     try {
       for (const file of Array.from(files)) {
         if (file.type.startsWith("video/")) {
-          const { url } = await uploadVideo(token, file);
+          const url = await attachVideoWithCompression(token, file, setAttachStatus);
           setVideos((prev) => [...prev, url]);
         } else {
+          setAttachStatus("업로드 중...");
           const { url } = await uploadImage(token, file);
           setImages((prev) => [...prev, url]);
         }
       }
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "첨부 파일 업로드에 실패했습니다");
+      setFormError(err instanceof Error ? err.message : "첨부 파일 업로드에 실패했습니다");
     } finally {
       setIsAttaching(false);
+      setAttachStatus(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
@@ -103,6 +118,7 @@ export function GroupPostFeed({ token, groupId }: { token: string; groupId: numb
       setText("");
       setImages([]);
       setVideos([]);
+      onPostCreated?.(created);
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : "게시글 작성에 실패했습니다");
     } finally {
@@ -115,7 +131,14 @@ export function GroupPostFeed({ token, groupId }: { token: string; groupId: numb
       <form onSubmit={handleSubmit} className="card" style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
         <div className="field">
           <label htmlFor="post-text">무슨 이야기가 있나요?</label>
-          <textarea id="post-text" rows={3} required value={text} onChange={(e) => setText(e.target.value)} />
+          {/* 첨부가 있으면 본문 없이도 게시 가능 — 백엔드도 같은 규칙(둘 다 비면 400) */}
+          <textarea
+            id="post-text"
+            rows={3}
+            required={images.length === 0 && videos.length === 0}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+          />
         </div>
 
         {(images.length > 0 || videos.length > 0) && (
@@ -196,7 +219,7 @@ export function GroupPostFeed({ token, groupId }: { token: string; groupId: numb
             disabled={isAttaching || isSubmitting}
             style={{ fontSize: "0.82rem" }}
           />
-          {isAttaching && <span style={{ fontSize: "0.78rem", color: "var(--ink-faint)" }}>업로드 중...</span>}
+          {attachStatus && <span style={{ fontSize: "0.78rem", color: "var(--ink-faint)" }}>{attachStatus}</span>}
         </div>
 
         {formError && <p className="field-error">{formError}</p>}

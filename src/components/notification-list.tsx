@@ -19,6 +19,9 @@ const TYPE_LABEL: Record<NotificationType, string> = {
   MEETING_STARTED: "화상회의 시작",
   NOTICE: "공지",
   INVITE: "초대",
+  JOIN_REQUEST: "가입 신청",
+  JOIN_APPROVED: "가입 승인",
+  JOIN_REJECTED: "가입 거절",
 };
 
 export function NotificationList({ token }: { token: string }) {
