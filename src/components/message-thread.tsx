@@ -1,8 +1,9 @@
 "use client";
 
-import { memo, useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { ApiError, uploadChatFile, type ChatMessage, type MessageAttachment, type ReadPosition } from "@/lib/api";
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
+import { ApiError, uploadChatFile, type ChatMessage, type Member, type MessageAttachment, type ReadPosition } from "@/lib/api";
 import { prepareVideoForUpload } from "@/lib/attach-video";
+import { ChatRoomDrawer } from "@/components/chat-room-drawer";
 import { ComposerAttachmentMenu } from "@/components/composer-attachment-menu";
 import { useChatSocket } from "@/hooks/use-chat-socket";
 import type { ChatSocketEvent } from "@/lib/ws";
@@ -94,7 +95,7 @@ const MessageBubble = memo(function MessageBubble({
     ) : null;
 
   return (
-    <div className={`bubble-row ${isMine ? "mine" : ""}`}>
+    <div className={`bubble-row ${isMine ? "mine" : ""}`} data-message-id={message.id}>
       {!isMine &&
         (showAuthor ? (
           message.authorProfileImg ? (
@@ -151,6 +152,9 @@ const MessageBubble = memo(function MessageBubble({
 const TYPING_SEND_INTERVAL_MS = 2500;
 const TYPING_HIDE_MS = 4000;
 
+// 페이지당 메시지 수 — API 기본 size(50)와 같아야 "응답 < PAGE_SIZE = 소진" 판정이 맞는다(KMP PAGE_SIZE 미러).
+const PAGE_SIZE = 50;
+
 // 그룹 채팅(ChatThread)과 DM(DirectMessageThread)이 공유하는 렌더링 로직.
 // 실시간 수신은 WebSocket/STOMP(useChatSocket)로 받고, REST는 쓰기(전송/삭제)와
 // (재)연결 시 히스토리 재조회에만 쓴다 — 4초 폴링(useMessagePolling)은 제거됨.
@@ -159,7 +163,8 @@ export interface MessageThreadProps {
   token: string;
   chatRoomId: number;
   myUserId: number | null;
-  fetchMessages: () => Promise<ChatMessage[]>;
+  // page 0=최신 50개(호출부가 오래된 순으로 뒤집어 줌), page N=그보다 옛 블록.
+  fetchMessages: (page: number) => Promise<ChatMessage[]>;
   fetchReads: () => Promise<ReadPosition[]>;
   onSend: (text: string, attachment?: MessageAttachment) => Promise<ChatMessage>;
   onDelete: (messageId: number) => Promise<void>;
@@ -167,9 +172,15 @@ export interface MessageThreadProps {
   // 첨부 패널의 보이스톡/페이스톡 — 통화 세션은 이 화면 위(GroupCallSession·DmCall)에 있고
   // 시작만 위임받는다. 없으면 패널에서 통화 항목이 빠진다.
   onStartCall?: (video: boolean) => void;
+  // 우측 드로어용 — 방 이름(그룹=방 이름, DM=상대 이름)과 멤버 API(그룹만, 없으면 DM 규칙=메시지에서 상대 파생).
+  // 햄버거 버튼과 열림 상태는 페이지 헤더가 소유하고(KMP 상단바 미러) 여기는 드로어만 렌더한다.
+  roomTitle?: string;
+  fetchMembers?: () => Promise<Member[]>;
+  drawerOpen?: boolean;
+  onDrawerClose?: () => void;
 }
 
-export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, fetchReads, onSend, onDelete, onMarkRead, onStartCall }: MessageThreadProps) {
+export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, fetchReads, onSend, onDelete, onMarkRead, onStartCall, roomTitle, fetchMembers, drawerOpen, onDrawerClose }: MessageThreadProps) {
   const [messages, setMessages] = useState<ChatMessage[] | null>(null);
   // userId -> 그 사람이 마지막으로 읽은 메시지 id.
   const [reads, setReads] = useState<Record<number, number>>({});
@@ -193,6 +204,7 @@ export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, fetc
   const typingTimersRef = useRef(new Map<number, ReturnType<typeof setTimeout>>());
   const lastTypingSentRef = useRef(0);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const threadRef = useRef<HTMLDivElement>(null);
 
   const fetchRef = useRef(fetchMessages);
   const fetchReadsRef = useRef(fetchReads);
@@ -203,10 +215,25 @@ export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, fetc
     onMarkReadRef.current = onMarkRead;
   });
 
-  // (재)연결 성공 때마다 호출 — 초기 로드와 끊김 구간 복구가 같은 경로.
+  // 이전 페이지 로드 상태(KMP ChatRoomViewModel.loadOlder 미러) — 렌더와 무관한 값은 ref로 둔다.
+  // refresh·loadOlder(useCallback)가 캡처하므로 그보다 먼저 선언해야 한다(react-hooks/immutability).
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+  const [olderError, setOlderError] = useState<string | null>(null);
+  const oldestLoadedPageRef = useRef(0);
+  const canLoadOlderRef = useRef(false);
+  const isLoadingOlderRef = useRef(false);
+  // 초기 바닥 정렬 후에만 상단 트리거 발화(KMP initialScrolled 미러) — 진입 직후 scrollTop 0 오발화 방지.
+  const initialScrolledRef = useRef(false);
+  // 위로 병합 직전에 기록한 스크롤 기준 — useLayoutEffect가 페인트 전에 제자리로 보정한다.
+  const prependAnchorRef = useRef<{ scrollHeight: number; scrollTop: number } | null>(null);
+
+  // (재)연결 성공 때마다 호출 — 초기 로드와 끊김 구간 복구가 같은 경로. 페이지 0부터 다시라
+  // 위로 로드해 둔 옛 페이지는 버리고 페이징 상태도 리셋한다(KMP loadLatest 미러).
   const refresh = useCallback(async () => {
     try {
-      const [page, readList] = await Promise.all([fetchRef.current(), fetchReadsRef.current()]);
+      const [page, readList] = await Promise.all([fetchRef.current(0), fetchReadsRef.current()]);
+      oldestLoadedPageRef.current = 0;
+      canLoadOlderRef.current = page.length === PAGE_SIZE;
       setMessages(page);
       setReads(Object.fromEntries(readList.map((r) => [r.userId, r.lastReadMessageId])));
       setLoadError(null);
@@ -329,9 +356,81 @@ export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, fetc
     return () => document.removeEventListener("visibilitychange", reportRead);
   }, [reportRead]);
 
+  // 진입/새 메시지 스크롤은 그 시점의 높이 기준이라, width/height 예약이 없는 이미지(로드 전 0px)·
+  // 영상(메타데이터 전 기본 높이)이 뒤늦게 로드되면 콘텐츠가 자라 바닥이 밀려난다 — 바닥에 붙어
+  // 있는 동안(pinned)은 미디어 로드 때마다 다시 바닥으로 붙인다(KMP는 인덱스 스크롤이라 없는 문제).
+  // 사용자가 위로 올리면 고정이 풀려 이력을 읽는 중엔 당겨지지 않는다.
+  const pinnedRef = useRef(true);
+
+  const loadOlder = useCallback(async () => {
+    if (isLoadingOlderRef.current || !canLoadOlderRef.current) return;
+    isLoadingOlderRef.current = true;
+    setIsLoadingOlder(true);
+    setOlderError(null);
+    const page = oldestLoadedPageRef.current + 1;
+    try {
+      const fetched = await fetchRef.current(page);
+      oldestLoadedPageRef.current = page;
+      canLoadOlderRef.current = fetched.length === PAGE_SIZE;
+      const el = threadRef.current;
+      if (el) prependAnchorRef.current = { scrollHeight: el.scrollHeight, scrollTop: el.scrollTop };
+      setMessages((prev) => {
+        if (!prev) return fetched;
+        // 로드 사이 새 메시지 유입으로 오프셋이 밀리면 중복이 올 수 있어 id로 거른다(KMP 미러).
+        const knownIds = new Set(prev.map((m) => m.id));
+        return [...fetched.filter((m) => !knownIds.has(m.id)), ...prev];
+      });
+    } catch (err) {
+      setOlderError(err instanceof ApiError ? err.message : "이전 메시지를 불러오지 못했습니다.");
+    } finally {
+      isLoadingOlderRef.current = false;
+      setIsLoadingOlder(false);
+    }
+  }, []);
+
+  // 위로 병합한 프레임에서 페인트 전에 스크롤을 제자리로 — KMP LazyColumn 키 앵커의 수동 미러.
+  useLayoutEffect(() => {
+    const anchor = prependAnchorRef.current;
+    const el = threadRef.current;
+    if (!anchor || !el) return;
+    prependAnchorRef.current = null;
+    el.scrollTop = anchor.scrollTop + (el.scrollHeight - anchor.scrollHeight);
+  }, [messages]);
+
   useEffect(() => {
+    const el = threadRef.current;
+    if (!el) return;
+    const rePin = () => {
+      if (pinnedRef.current) el.scrollTop = el.scrollHeight;
+    };
+    const onScroll = () => {
+      pinnedRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+      // 상단 근처 = 이전 페이지 로드(KMP first<3 미러) — 가드는 loadOlder 안에 있다.
+      if (initialScrolledRef.current && el.scrollTop < 100) loadOlder();
+    };
+    el.addEventListener("scroll", onScroll);
+    // load(이미지)·loadedmetadata(영상 크기 확정)·error(실패로 자리가 꺼질 때)는 버블링하지 않아 캡처로 받는다.
+    el.addEventListener("load", rePin, true);
+    el.addEventListener("loadedmetadata", rePin, true);
+    el.addEventListener("error", rePin, true);
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      el.removeEventListener("load", rePin, true);
+      el.removeEventListener("loadedmetadata", rePin, true);
+      el.removeEventListener("error", rePin, true);
+    };
+  }, [loadOlder]);
+
+  // 바닥 따라가기 — 길이가 아니라 최신 id 기준(KMP latestMessageId 미러): 위로 옛 페이지를
+  // 병합해도 발화하지 않고, 중간 메시지 삭제로 끌려가지도 않는다.
+  const latestMessageId = messages?.[messages.length - 1]?.id;
+
+  useEffect(() => {
+    if (latestMessageId === undefined) return; // 초기 로드 전이거나 빈 방
+    initialScrolledRef.current = true;
+    pinnedRef.current = true; // 진입·새 메시지 = 바닥 따라가기(기존 동작 유지)
     bottomRef.current?.scrollIntoView({ block: "end" });
-  }, [messages?.length]);
+  }, [latestMessageId]);
 
   function selectFile(file: File | undefined) {
     if (!file) return;
@@ -429,6 +528,18 @@ export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, fetc
     [onDelete]
   );
 
+  // 드로어 사진 클릭 → 해당 메시지로 스크롤(KMP animateScrollToItem 미러).
+  const jumpToMessage = useCallback((messageId: number) => {
+    // 점프 중 미디어가 로드되며 바닥 고정이 목적지를 빼앗지 않게 먼저 해제한다.
+    pinnedRef.current = false;
+    threadRef.current
+      ?.querySelector(`[data-message-id="${messageId}"]`)
+      ?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, []);
+
+  // 드로어 제목 — 그룹은 방 이름, DM은 메시지에서 파생한 상대 이름(KMP DM 대화상대 규칙 미러).
+  const drawerTitle = roomTitle ?? messages?.find((m) => m.userId !== myUserId)?.authorName ?? "1:1 대화";
+
   // 내가 아닌 사람들의 읽음 위치 — 내 메시지 옆 "읽음 n" 계산에 쓴다.
   const otherReadPositions = Object.entries(reads)
     .filter(([uid]) => Number(uid) !== myUserId)
@@ -448,7 +559,15 @@ export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, fetc
           {viewers.map((v) => v.userName).join(", ")}님이 지금 이 방을 보고 있어요
         </p>
       )}
-      <div className="chat-thread" style={{ maxHeight: "60vh", overflowY: "auto", padding: "var(--sp-2)" }}>
+      <div ref={threadRef} className="chat-thread" style={{ maxHeight: "60vh", overflowY: "auto", padding: "var(--sp-2)" }}>
+        {isLoadingOlder && (
+          <p style={{ fontSize: "0.78rem", color: "var(--ink-faint)", textAlign: "center", margin: 0 }}>
+            이전 메시지 불러오는 중...
+          </p>
+        )}
+        {olderError && !isLoadingOlder && (
+          <p style={{ fontSize: "0.78rem", color: "var(--rust)", textAlign: "center", margin: 0 }}>{olderError}</p>
+        )}
         {messages === null && !loadError && <p style={{ color: "var(--ink-faint)" }}>불러오는 중...</p>}
         {messages?.length === 0 && <p style={{ color: "var(--ink-faint)" }}>아직 메시지가 없습니다.</p>}
         {messages?.map((m, i) => (
@@ -555,6 +674,18 @@ export function MessageThread({ token, chatRoomId, myUserId, fetchMessages, fetc
         </form>
         {sendError && <p className="field-error">{sendError}</p>}
       </div>
+
+      <ChatRoomDrawer
+        open={drawerOpen ?? false}
+        onClose={() => onDrawerClose?.()}
+        title={drawerTitle}
+        isGroup={fetchMembers != null}
+        myUserId={myUserId}
+        messages={messages ?? []}
+        fetchMembers={fetchMembers}
+        onJumpToMessage={jumpToMessage}
+        onStartCall={onStartCall}
+      />
     </div>
   );
 }

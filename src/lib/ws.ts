@@ -90,6 +90,10 @@ export interface ChatBadgeEvent {
   chatRoomId: number;
   messageId: number;
   senderId: number;
+  // 허브 목록 미리보기 갱신용 본문(2026-08 서버) — 구서버는 필드가 없어 undefined(미읽음만 +1).
+  text?: string | null;
+  attachmentType?: string | null;
+  createdAt?: string | null;
 }
 
 // 친구 프레즌스 전환 — "이 유저를 친구로 등록한 사람"에게만 온다. 스냅샷은 친구 목록 API의 online 필드.

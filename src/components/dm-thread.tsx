@@ -7,16 +7,24 @@ import { MessageThread } from "@/components/message-thread";
 export function DirectMessageThread({
   token,
   chatRoomId,
+  roomTitle,
   onStartCall,
+  drawerOpen,
+  onDrawerClose,
 }: {
   token: string;
   chatRoomId: number;
+  // 상대 이름(페이지가 listDirectRooms에서 조회) — 드로어 제목용. 없으면 메시지에서 파생한다.
+  roomTitle?: string;
   onStartCall?: (video: boolean) => void;
+  // 드로어 열림 상태는 페이지 헤더의 ☰ 버튼이 소유한다. fetchMembers 미전달 = DM 규칙.
+  drawerOpen?: boolean;
+  onDrawerClose?: () => void;
 }) {
   const myUserId = getUserIdFromToken(token);
 
   const fetchMessages = useCallback(
-    () => listDirectMessages(token, chatRoomId).then((page) => [...page].reverse()),
+    (page: number) => listDirectMessages(token, chatRoomId, page).then((fetched) => [...fetched].reverse()),
     [token, chatRoomId]
   );
   const onSend = useCallback(
@@ -45,6 +53,9 @@ export function DirectMessageThread({
       onDelete={onDelete}
       onMarkRead={onMarkRead}
       onStartCall={onStartCall}
+      roomTitle={roomTitle}
+      drawerOpen={drawerOpen}
+      onDrawerClose={onDrawerClose}
     />
   );
 }

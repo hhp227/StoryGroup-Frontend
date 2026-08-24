@@ -500,6 +500,12 @@ export interface GroupChatRoom {
   groupName: string;
   name: string;
   createdAt: string;
+  // 허브 미리보기·뱃지(2026-08 서버) — 구서버 방어로 옵셔널(KMP 기본값 관례).
+  // lastMessageAt이 null이면 메시지 없음, 첨부 전용이면 lastMessageText가 빈 문자열(종류는 lastMessageType).
+  unreadCount?: number;
+  lastMessageText?: string | null;
+  lastMessageType?: string | null;
+  lastMessageAt?: string | null;
 }
 
 export function listMyGroupChatRooms(token: string) {
@@ -599,6 +605,11 @@ export interface DirectRoom {
   otherUserName: string;
   otherUserProfileImg: string | null;
   createdAt: string;
+  // 허브 미리보기·뱃지 — GroupChatRoom과 같은 계약(구서버 방어 옵셔널).
+  unreadCount?: number;
+  lastMessageText?: string | null;
+  lastMessageType?: string | null;
+  lastMessageAt?: string | null;
 }
 
 export function listDirectRooms(token: string) {
@@ -781,6 +792,11 @@ export interface AppNotification {
   targetId: number | null;
   isRead: boolean;
   createdAt: string;
+  // 서버가 target에서 역추적한 컨텍스트(2026-08 서버) — 대상 삭제/접근 불가·구서버는 null(KMP DTO와 동일 계약).
+  postId?: number | null;
+  postPreview?: string | null;
+  groupId?: number | null;
+  groupName?: string | null;
 }
 
 export function listNotifications(token: string, page = 0, size = 20) {

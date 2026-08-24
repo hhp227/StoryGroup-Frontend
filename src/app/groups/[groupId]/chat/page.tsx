@@ -24,6 +24,8 @@ export default function GroupChatPage() {
   const [rooms, setRooms] = useState<ChatRoom[] | null>(null);
   const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // 선택된 방의 우측 드로어(대화상대/사진/통화) — 헤더 행의 ☰ 버튼이 연다(KMP 상단바 미러).
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const loadRooms = useCallback(
     (token: string) =>
@@ -62,7 +64,14 @@ export default function GroupChatPage() {
       {/* 그룹 파일함 진입 버튼은 뺐다 — 채팅 첨부는 그룹 파일함(/api/groups/{id}/files)이 아니라
           스토리지에만 저장돼서 여기서 올린 파일이 거기 쌓이지 않는다. 파일함은 그룹 상세 사이드바와
           검색에서 들어가고, 입력창 첨부 패널의 "파일"(보내기)과 이름이 겹쳐 헷갈리기도 했다. */}
-      <h1 style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem" }}>채팅</h1>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <h1 style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem" }}>채팅</h1>
+        {rooms && rooms.length > 0 && selectedRoomId !== null && (
+          <button type="button" className="chat-drawer-trigger" aria-label="채팅방 메뉴" onClick={() => setDrawerOpen(true)}>
+            ☰
+          </button>
+        )}
+      </div>
 
       <GroupMemberStrip token={accessToken} groupId={groupId} />
 
@@ -92,7 +101,10 @@ export default function GroupChatPage() {
             token={accessToken}
             groupId={groupId}
             chatRoomId={selectedRoomId}
+            roomName={rooms.find((r) => r.id === selectedRoomId)?.name}
             onStartCall={(video) => callHandle.current?.start(video)}
+            drawerOpen={drawerOpen}
+            onDrawerClose={() => setDrawerOpen(false)}
           />
         </>
       )}
