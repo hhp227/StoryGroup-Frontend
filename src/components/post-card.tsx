@@ -3,7 +3,11 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { Post } from "@/lib/api";
-import { VideoAttachment } from "./video-attachment";
+
+/** 미디어 그리드에 보여줄 최대 장수 — 넘치면 마지막 타일에 "+N"(전체는 상세에서). KMP MEDIA_GRID_MAX 미러 */
+const MEDIA_GRID_MAX = 6;
+
+type PostMedia = { url: string; isVideo: boolean };
 
 /** 공유 본문 — KMP Share.kt postShareText 미러: "작성자 — 본문", 본문 없는 첨부 전용 글은 첫 첨부 URL로 대체 */
 function postShareText(post: Post): string {
@@ -30,6 +34,11 @@ const actionCellStyle: CSSProperties = {
 
 export function PostCard({ post, onToggleLike }: { post: Post; onToggleLike?: () => void }) {
   const videos = post.videos ?? [];
+  // 미디어=이미지 먼저+동영상 뒤(KMP 순서) — 카드 전폭 풀블리드 블록으로 그린다.
+  const media: PostMedia[] = [
+    ...post.images.map((img) => ({ url: img.image, isVideo: false })),
+    ...videos.map((v) => ({ url: v.video, isVideo: true })),
+  ];
   const detailHref = `/groups/${post.groupId}/posts/${post.id}`;
   // 공유 폴백(클립보드 복사) 피드백 — 1.5초간 공유 칸 라벨을 "복사됨"으로 바꾼다.
   const [copied, setCopied] = useState(false);
@@ -95,21 +104,7 @@ export function PostCard({ post, onToggleLike }: { post: Post; onToggleLike?: ()
           // 첨부만 있는 게시글 - 빈 문단의 위아래 여백 대신 최소 간격만 둔다.
           <div style={{ height: "var(--sp-3)" }} />
         )}
-        {post.images.length > 0 ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-            {post.images.slice(0, 1).map((img) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                key={img.id}
-                src={img.image}
-                alt=""
-                style={{ width: "100%", borderRadius: 10, border: "1px solid var(--stone-border)" }}
-              />
-            ))}
-          </div>
-        ) : videos.length > 0 ? (
-          <VideoAttachment src={videos[0].video} />
-        ) : null}
+        <PostCardMediaBlock media={media} />
       </Link>
       {/* KMP SgPostCard 액션 바 미러 — 전폭 구분선+등분 3버튼, 카운트 0이면 숫자 생략, likedByMe면 칸 전체 accent. */}
       <div style={{ display: "flex", borderTop: "1px solid var(--stone-border)" }}>
@@ -130,5 +125,98 @@ export function PostCard({ post, onToggleLike }: { post: Post; onToggleLike?: ()
         </button>
       </div>
     </article>
+  );
+}
+
+// 카드 전폭 미디어 블록 — 레거시 iv_post(match_parent+adjustViewBounds) 풀블리드 미러(KMP PostCardMediaBlock).
+// Link 패딩(sp-5)을 음수 마진으로 상쇄해 양옆·아래(구분선까지)를 꽉 채운다.
+// 1개=원본 비율 한 장, 2~6개=2열 스태거드(타일 간 2px) — 크기 메타데이터가 없어 열 배분은 인덱스 교대(0·2·4→왼쪽).
+function PostCardMediaBlock({ media }: { media: PostMedia[] }) {
+  if (media.length === 0) return null;
+
+  const visible = media.slice(0, MEDIA_GRID_MAX);
+  const overflow = media.length - visible.length;
+
+  return (
+    <div style={{ margin: "0 calc(-1 * var(--sp-5)) calc(-1 * var(--sp-5))" }}>
+      {media.length === 1 ? (
+        <MediaTile media={media[0]} overflowCount={0} />
+      ) : (
+        <div style={{ display: "flex", gap: 2, alignItems: "flex-start" }}>
+          {[0, 1].map((column) => (
+            <div key={column} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+              {visible.map((item, index) =>
+                index % 2 === column ? (
+                  <MediaTile
+                    key={`${index}-${item.url}`}
+                    media={item}
+                    overflowCount={index === visible.length - 1 ? overflow : 0}
+                  />
+                ) : null,
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// 미디어 한 타일 — 폭 맞춤+원본 비율. 동영상은 첫 프레임(preload=metadata)+▶ 오버레이, 재생은 상세에서(카드 전체가 Link).
+function MediaTile({ media, overflowCount }: { media: PostMedia; overflowCount: number }) {
+  return (
+    <div style={{ position: "relative" }}>
+      {media.isVideo ? (
+        <>
+          <video src={media.url} muted preload="metadata" style={{ width: "100%", display: "block" }} />
+          <span
+            aria-hidden
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <span
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 999,
+                background: "rgba(0, 0, 0, 0.45)",
+                color: "#fff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "0.9rem",
+              }}
+            >
+              ▶
+            </span>
+          </span>
+        </>
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={media.url} alt="" style={{ width: "100%", display: "block" }} />
+      )}
+      {overflowCount > 0 && (
+        <span
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(0, 0, 0, 0.45)",
+            color: "#fff",
+            fontSize: "1.15rem",
+            fontWeight: 700,
+          }}
+        >
+          +{overflowCount}
+        </span>
+      )}
+    </div>
   );
 }
