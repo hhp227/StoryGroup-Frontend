@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ApiError, createPost, listPosts, uploadImage, type Post } from "@/lib/api";
+import { ApiError, createPost, likePost, listPosts, unlikePost, uploadImage, type Post } from "@/lib/api";
 import { attachVideoWithCompression } from "@/lib/attach-video";
 import { PostCard } from "./post-card";
 
@@ -32,6 +32,10 @@ export function GroupPostFeed({
   const [hasMore, setHasMore] = useState(true);
   const isLoadingPage = loadedPage < page;
   const sentinelRef = useRef<HTMLDivElement>(null);
+  // 좋아요 토글 에러(KMP likeError 미러) — 피드 로드 에러와 별도로 표출한다.
+  const [actionError, setActionError] = useState<string | null>(null);
+  // 토글 요청이 진행 중인 게시글 id — 연타를 무시하기 위한 가드(표시 변화는 없어 state가 아니라 ref).
+  const likeBusyRef = useRef<Set<number>>(new Set());
 
   const [text, setText] = useState("");
   const [images, setImages] = useState<string[]>([]);
@@ -74,6 +78,30 @@ export function GroupPostFeed({
     observer.observe(el);
     return () => observer.disconnect();
   }, [hasMore, isLoadingPage]);
+
+  // 좋아요 토글 — 성공 후 반영(KMP·상세 페이지 패턴). 성공 시 해당 카드의 likedByMe/likeCount만 갱신한다.
+  function handleToggleLike(post: Post) {
+    if (likeBusyRef.current.has(post.id)) return;
+    likeBusyRef.current.add(post.id);
+    setActionError(null);
+    const liked = post.likedByMe ?? false;
+    const req = liked ? unlikePost(token, groupId, post.id) : likePost(token, groupId, post.id);
+    req
+      .then(() => {
+        setPosts(
+          (prev) =>
+            prev?.map((p) =>
+              p.id === post.id
+                ? { ...p, likedByMe: !liked, likeCount: Math.max(0, (p.likeCount ?? 0) + (liked ? -1 : 1)) }
+                : p,
+            ) ?? prev,
+        );
+      })
+      .catch((err) => setActionError(err instanceof ApiError ? err.message : "좋아요 처리에 실패했습니다"))
+      .finally(() => {
+        likeBusyRef.current.delete(post.id);
+      });
+  }
 
   // 첨부 즉시 업로드해서 URL을 모아두고, 게시할 때는 URL 목록만 보낸다(기존 API 계약 그대로).
   // 이미지/동영상은 업로드 엔드포인트와 게시글 필드(images/videos)가 달라 MIME으로 갈라 보낸다.
@@ -229,10 +257,11 @@ export function GroupPostFeed({
       </form>
 
       {loadError && <p className="field-error">{loadError}</p>}
+      {actionError && <p className="field-error">{actionError}</p>}
       {posts === null && !loadError && <p style={{ color: "var(--ink-faint)" }}>불러오는 중...</p>}
       {posts?.length === 0 && !hasMore && <p style={{ color: "var(--ink-faint)" }}>아직 이야기가 없습니다. 첫 이야기를 남겨보세요.</p>}
       {posts?.map((post) => (
-        <PostCard key={post.id} post={post} />
+        <PostCard key={post.id} post={post} onToggleLike={() => handleToggleLike(post)} />
       ))}
 
       {hasMore && posts !== null && (
