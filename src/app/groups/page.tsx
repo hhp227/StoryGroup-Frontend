@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
 import { GroupCard } from "@/components/group-card";
 import { GroupDiscover } from "@/components/group-discover";
-import { PendingGroupsSection } from "@/components/pending-groups-section";
+import { PendingGroups } from "@/components/pending-groups";
 import { ApiError, listMyGroups, type Group } from "@/lib/api";
 
 // useSearchParams(탭 상태)는 정적 빌드에서 Suspense 경계가 필요하다(CSR bailout 에러 방지).
@@ -22,7 +22,8 @@ function GroupsPageContent() {
   const { accessToken, isReady } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const tab = searchParams.get("tab") === "discover" ? "discover" : "mine";
+  const tabParam = searchParams.get("tab");
+  const tab = tabParam === "discover" ? "discover" : tabParam === "pending" ? "pending" : "mine";
 
   useEffect(() => {
     if (isReady && !accessToken) router.push("/login");
@@ -36,7 +37,11 @@ function GroupsPageContent() {
         <div>
           <h1 style={{ fontFamily: "var(--font-display)", fontSize: "1.6rem", marginBottom: "var(--sp-2)" }}>그룹</h1>
           <p style={{ color: "var(--ink-soft)" }}>
-            {tab === "mine" ? "참여 중인 그룹 목록입니다." : "새로운 그룹을 찾아 참여해보세요."}
+            {tab === "mine"
+              ? "참여 중인 그룹 목록입니다."
+              : tab === "discover"
+                ? "새로운 그룹을 찾아 참여해보세요."
+                : "가입 승인을 기다리는 그룹 목록입니다."}
           </p>
         </div>
         <Link className="btn btn-primary" href="/groups/new">
@@ -51,9 +56,18 @@ function GroupsPageContent() {
         <TabLink href="/groups?tab=discover" active={tab === "discover"}>
           그룹 찾기
         </TabLink>
+        <TabLink href="/groups?tab=pending" active={tab === "pending"}>
+          가입 신청중
+        </TabLink>
       </div>
 
-      {tab === "mine" ? <MyGroups token={accessToken} /> : <GroupDiscover token={accessToken} />}
+      {tab === "mine" ? (
+        <MyGroups token={accessToken} />
+      ) : tab === "discover" ? (
+        <GroupDiscover token={accessToken} />
+      ) : (
+        <PendingGroups token={accessToken} />
+      )}
     </div>
   );
 }
@@ -88,7 +102,6 @@ function MyGroups({ token }: { token: string }) {
 
   return (
     <div>
-      <PendingGroupsSection token={token} />
       {loadError && <p className="field-error">{loadError}</p>}
       {groups === null && !loadError && <p style={{ color: "var(--ink-faint)" }}>불러오는 중...</p>}
       {groups && groups.filter((g) => !g.isLounge).length === 0 && (
