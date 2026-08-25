@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
 import { GroupCard } from "@/components/group-card";
 import { GroupDiscover } from "@/components/group-discover";
+import { PendingGroupsSection } from "@/components/pending-groups-section";
 import { ApiError, listMyGroups, type Group } from "@/lib/api";
 
 // useSearchParams(탭 상태)는 정적 빌드에서 Suspense 경계가 필요하다(CSR bailout 에러 방지).
@@ -87,6 +88,7 @@ function MyGroups({ token }: { token: string }) {
 
   return (
     <div>
+      <PendingGroupsSection token={token} />
       {loadError && <p className="field-error">{loadError}</p>}
       {groups === null && !loadError && <p style={{ color: "var(--ink-faint)" }}>불러오는 중...</p>}
       {groups && groups.filter((g) => !g.isLounge).length === 0 && (

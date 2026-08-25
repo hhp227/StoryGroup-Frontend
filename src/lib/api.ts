@@ -193,6 +193,11 @@ export function cancelJoinRequest(token: string, groupId: number) {
   return request<void>(`/api/groups/${groupId}/join`, { method: "DELETE", token });
 }
 
+// 내가 가입 신청(PENDING)한 그룹 목록 — KMP getMyJoinRequestedGroups 미러, 응답은 탐색과 같은 DiscoverGroup.
+export function listMyJoinRequests(token: string) {
+  return request<DiscoverGroup[]>(`/api/groups/join-requests/mine`, { token });
+}
+
 export function joinGroupByCode(token: string, code: string) {
   return request<Group>(`/api/groups/join/${encodeURIComponent(code)}`, { method: "POST", token });
 }
