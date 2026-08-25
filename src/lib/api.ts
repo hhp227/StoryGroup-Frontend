@@ -383,6 +383,10 @@ export interface Post {
   videos?: PostVideo[];
   isNotice: boolean;
   createdAt: string;
+  // 목록 카운트(KMP PostResponse와 동일 계약) — 카운트 미배포 백엔드는 필드 없음(0/false 취급).
+  likeCount?: number;
+  replyCount?: number;
+  likedByMe?: boolean;
 }
 
 export function listPosts(token: string, groupId: number, page = 0, size = 20) {

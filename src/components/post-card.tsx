@@ -52,6 +52,27 @@ export function PostCard({ post }: { post: Post }) {
         ) : videos.length > 0 ? (
           <VideoAttachment src={videos[0].video} />
         ) : null}
+        {/* 좋아요·댓글 카운트(KMP SgPostCard 액션 바의 표시 부분 미러) — 0이면 숫자 생략, 토글은 상세에서. */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "var(--sp-5)",
+            marginTop: "var(--sp-3)",
+            paddingTop: "var(--sp-3)",
+            borderTop: "1px solid var(--stone-border)",
+            fontSize: "0.82rem",
+            color: "var(--ink-soft)",
+          }}
+        >
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <span aria-hidden style={{ color: post.likedByMe ? "var(--accent)" : "var(--ink-soft)" }}>
+              {post.likedByMe ? "♥" : "♡"}
+            </span>
+            좋아요{(post.likeCount ?? 0) > 0 ? ` ${post.likeCount}` : ""}
+          </span>
+          <span>댓글{(post.replyCount ?? 0) > 0 ? ` ${post.replyCount}` : ""}</span>
+        </div>
       </article>
     </Link>
   );
