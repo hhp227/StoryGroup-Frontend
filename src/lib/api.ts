@@ -52,7 +52,9 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   }
 
   if (res.status === 204) return undefined as T;
-  return res.json() as Promise<T>;
+  // PUT /api/push-tokens처럼 200+빈 본문인 응답 대비 — 본문이 있을 때만 JSON 파싱한다.
+  const text = await res.text();
+  return (text ? JSON.parse(text) : undefined) as T;
 }
 
 export interface UserSummary {
@@ -1007,4 +1009,21 @@ export function getUserIdFromToken(token: string): number | null {
   } catch {
     return null;
   }
+}
+
+// ---- 푸시 토큰(웹 FCM) ----
+
+export function registerPushToken(token: string, pushToken: string) {
+  return request<void>("/api/push-tokens", {
+    method: "PUT",
+    token,
+    body: JSON.stringify({ token: pushToken, platform: "WEB" }),
+  });
+}
+
+export function unregisterPushToken(token: string, pushToken: string) {
+  return request<void>(`/api/push-tokens?token=${encodeURIComponent(pushToken)}`, {
+    method: "DELETE",
+    token,
+  });
 }

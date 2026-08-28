@@ -1,7 +1,8 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { loginUser, logoutUser, refreshTokens, registerUser, type UserSummary } from "@/lib/api";
+import { loginUser, logoutUser, refreshTokens, registerUser, unregisterPushToken, type UserSummary } from "@/lib/api";
+import { removePushToken } from "@/lib/push";
 
 interface AuthState {
   accessToken: string | null;
@@ -151,6 +152,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   function logout() {
+    // 푸시 토큰 해제 — best effort(설계 §10). accessToken이 아직 살아있는 시점에 호출
+    const tokenForPush = state.accessToken;
+    void (async () => {
+      const pushToken = await removePushToken();
+      if (pushToken && tokenForPush) await unregisterPushToken(tokenForPush, pushToken).catch(() => {});
+    })();
     // 서버 측 리프레시 토큰도 폐기한다(실패해도 로컬 로그아웃은 그대로 진행).
     const { refreshToken } = state;
     if (refreshToken) logoutUser(refreshToken).catch(() => {});

@@ -3,6 +3,7 @@ import "./globals.css";
 import { ThemeProvider, THEME_INIT_SCRIPT } from "@/components/theme-provider";
 import { AuthProvider } from "@/components/auth-provider";
 import { AppHeader } from "@/components/app-header";
+import { PushRegister } from "@/components/push-register";
 
 export const metadata: Metadata = {
   title: "StoryGroup",
@@ -21,6 +22,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <ThemeProvider>
           <AuthProvider>
+            <PushRegister />
             <AppHeader />
             <main>{children}</main>
           </AuthProvider>
