@@ -4,13 +4,13 @@ import { initializeApp, getApps } from "firebase/app";
 import { getMessaging, getToken, deleteToken, isSupported } from "firebase/messaging";
 
 export const FIREBASE_CONFIG = {
-  apiKey: "",        // Firebase 콘솔 값으로 채울 것 (Task 14 SW와 동일)
-  authDomain: "",
-  projectId: "",
-  messagingSenderId: "",
-  appId: "",
+  apiKey: "AIzaSyBY23Gz8PIDoiEosYjLxY4PUFj-_sYQNhg", // 공개 식별자 — 시크릿 아님 (SW와 동일해야 함)
+  authDomain: "application-bb416.firebaseapp.com",
+  projectId: "application-bb416",
+  messagingSenderId: "476947981226",
+  appId: "1:476947981226:web:5434c0a0eaaa35580081d3",
 };
-const VAPID_KEY = ""; // Firebase 콘솔 > 클라우드 메시징 > 웹 푸시 인증서
+const VAPID_KEY = ""; // Firebase 콘솔 > 클라우드 메시징 > 웹 푸시 인증서 키 쌍 생성 후 공개 키 기입
 
 function configured(): boolean {
   return Boolean(FIREBASE_CONFIG.projectId && VAPID_KEY);

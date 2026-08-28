@@ -4,11 +4,11 @@ importScripts("https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js
 importScripts("https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js");
 
 firebase.initializeApp({
-  apiKey: "",        // src/lib/push.ts의 FIREBASE_CONFIG와 문자 그대로 동일하게
-  authDomain: "",
-  projectId: "",
-  messagingSenderId: "",
-  appId: "",
+  apiKey: "AIzaSyBY23Gz8PIDoiEosYjLxY4PUFj-_sYQNhg", // src/lib/push.ts의 FIREBASE_CONFIG와 문자 그대로 동일하게
+  authDomain: "application-bb416.firebaseapp.com",
+  projectId: "application-bb416",
+  messagingSenderId: "476947981226",
+  appId: "1:476947981226:web:5434c0a0eaaa35580081d3",
 });
 
 const messaging = firebase.messaging();
