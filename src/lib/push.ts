@@ -10,7 +10,8 @@ export const FIREBASE_CONFIG = {
   messagingSenderId: "476947981226",
   appId: "1:476947981226:web:5434c0a0eaaa35580081d3",
 };
-const VAPID_KEY = ""; // Firebase 콘솔 > 클라우드 메시징 > 웹 푸시 인증서 키 쌍 생성 후 공개 키 기입
+// Firebase 콘솔 > 클라우드 메시징 > 웹 푸시 인증서 공개 키(공개값)
+const VAPID_KEY = "BFYlg1M5rbsE3i2z4f_Gvf0gqXiZkhH3_SVFn4IDGpWYoFBS9nlVaqB8Ejb9vIIhBmWS0QSYch9dFR9_SoPaaTg";
 
 function configured(): boolean {
   return Boolean(FIREBASE_CONFIG.projectId && VAPID_KEY);
