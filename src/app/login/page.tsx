@@ -32,11 +32,11 @@ function LoginForm() {
     }
   }
 
-  async function handleGoogleCredential(idToken: string) {
+  async function handleGoogleAccessToken(accessToken: string) {
     setError(null);
     setIsSubmitting(true);
     try {
-      await googleLogin(idToken);
+      await googleLogin(accessToken);
       router.push("/");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "구글 로그인에 실패했습니다. 잠시 후 다시 시도해주세요.");
@@ -77,7 +77,7 @@ function LoginForm() {
         </button>
       </form>
 
-      <GoogleSignInButton onCredential={handleGoogleCredential} />
+      <GoogleSignInButton onAccessToken={handleGoogleAccessToken} onError={setError} disabled={isSubmitting} />
 
       <p style={{ marginTop: "var(--sp-5)", fontSize: "0.9rem", color: "var(--ink-soft)" }}>
         아직 계정이 없나요? <Link href="/register" style={{ color: "var(--accent)", fontWeight: 600 }}>가입하기</Link>

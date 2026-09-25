@@ -7,34 +7,66 @@ import Script from "next/script";
 const GOOGLE_CLIENT_ID =
   process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "476947981226-8p3os2079vk0uueh9v70lgr8cdvi32i0.apps.googleusercontent.com";
 
-interface GoogleAccountsId {
-  initialize: (config: { client_id: string; callback: (response: { credential: string }) => void }) => void;
-  renderButton: (parent: HTMLElement, options: Record<string, unknown>) => void;
+interface TokenResponse {
+  access_token?: string;
+  error?: string;
+}
+
+interface TokenClient {
+  requestAccessToken: () => void;
+}
+
+interface GoogleAccountsOauth2 {
+  initTokenClient: (config: {
+    client_id: string;
+    scope: string;
+    callback: (response: TokenResponse) => void;
+    error_callback?: (error: { type: string }) => void;
+  }) => TokenClient;
 }
 
 declare global {
   interface Window {
-    google?: { accounts: { id: GoogleAccountsId } };
+    google?: { accounts: { oauth2: GoogleAccountsOauth2 } };
   }
 }
 
-// "또는" 구분선 + Google Identity Services 공식 버튼. 콜백의 credential이 ID 토큰(JWT)이다.
+// "또는" 구분선 + 로그인 버튼과 같은 btn-primary 구글 버튼. 공식 GIS 버튼(iframe)은 스타일을 바꿀 수 없어
+// 토큰 클라이언트 팝업으로 액세스 토큰을 받는다 — 서버가 tokeninfo로 aud를 확인한다(/api/auth/google/access-token).
 // 로그인·가입 화면이 같이 쓴다 — 구글은 가입과 로그인이 한 경로(서버가 없으면 만든다).
-export function GoogleSignInButton({ onCredential }: { onCredential: (idToken: string) => void }) {
-  const containerRef = useRef<HTMLDivElement>(null);
+export function GoogleSignInButton({
+  onAccessToken,
+  onError,
+  disabled,
+}: {
+  onAccessToken: (accessToken: string) => void;
+  onError: (message: string) => void;
+  disabled?: boolean;
+}) {
   // 다른 페이지에서 이미 스크립트를 받아 둔 경우 onReady를 기다리지 않는다
   const [scriptReady, setScriptReady] = useState(() => typeof window !== "undefined" && !!window.google);
-  // 부모가 매 렌더 새 콜백을 넘겨도 버튼을 다시 그리지 않도록 ref로 최신값만 참조
-  const onCredentialRef = useRef(onCredential);
+  const clientRef = useRef<TokenClient | null>(null);
+  // 부모가 매 렌더 새 콜백을 넘겨도 클라이언트를 다시 만들지 않도록 ref로 최신값만 참조
+  const callbacksRef = useRef({ onAccessToken, onError });
   useEffect(() => {
-    onCredentialRef.current = onCredential;
-  }, [onCredential]);
+    callbacksRef.current = { onAccessToken, onError };
+  }, [onAccessToken, onError]);
 
   useEffect(() => {
-    const gis = window.google?.accounts.id;
-    if (!scriptReady || !gis || !containerRef.current) return;
-    gis.initialize({ client_id: GOOGLE_CLIENT_ID, callback: (res) => onCredentialRef.current(res.credential) });
-    gis.renderButton(containerRef.current, { theme: "outline", size: "large", text: "continue_with", width: 320, locale: "ko" });
+    const oauth2 = window.google?.accounts.oauth2;
+    if (!scriptReady || !oauth2) return;
+    clientRef.current = oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: "openid email profile",
+      callback: (res) => {
+        if (res.access_token) callbacksRef.current.onAccessToken(res.access_token);
+        else callbacksRef.current.onError("구글 로그인에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      },
+      // 사용자가 팝업을 닫은 경우(popup_closed)는 조용히 — 차단 등 그 밖의 실패만 안내
+      error_callback: (err) => {
+        if (err.type !== "popup_closed") callbacksRef.current.onError("구글 로그인 창을 열지 못했습니다. 팝업 차단을 확인해주세요.");
+      },
+    });
   }, [scriptReady]);
 
   return (
@@ -54,7 +86,15 @@ export function GoogleSignInButton({ onCredential }: { onCredential: (idToken: s
         또는
         <span style={{ flex: 1, height: 1, background: "var(--stone-border)" }} />
       </div>
-      <div ref={containerRef} style={{ display: "flex", justifyContent: "center", minHeight: 44 }} />
+      <button
+        className="btn btn-primary"
+        type="button"
+        style={{ width: "100%" }}
+        disabled={disabled || !scriptReady}
+        onClick={() => clientRef.current?.requestAccessToken()}
+      >
+        Google로 계속하기
+      </button>
     </>
   );
 }

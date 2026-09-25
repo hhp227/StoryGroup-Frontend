@@ -12,7 +12,7 @@ interface AuthState {
 interface AuthContextValue extends AuthState {
   isReady: boolean;
   login: (email: string, password: string) => Promise<void>;
-  googleLogin: (idToken: string) => Promise<void>;
+  googleLogin: (accessToken: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<UserSummary>;
   logout: () => void;
 }
@@ -148,8 +148,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     persist({ accessToken: tokens.accessToken, refreshToken: tokens.refreshToken });
   }
 
-  async function googleLogin(idToken: string) {
-    const tokens = await loginWithGoogle(idToken);
+  async function googleLogin(accessToken: string) {
+    const tokens = await loginWithGoogle(accessToken);
     persist({ accessToken: tokens.accessToken, refreshToken: tokens.refreshToken });
   }
 

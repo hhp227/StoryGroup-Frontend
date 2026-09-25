@@ -78,11 +78,12 @@ export function registerUser(name: string, email: string, password: string) {
   });
 }
 
-// 구글 ID 토큰으로 로그인 — 처음 보는 구글 계정이면 서버가 가입까지 처리한다(설계 §2.3)
-export function loginWithGoogle(idToken: string) {
-  return request<TokenResponse>("/api/auth/google", {
+// 구글 액세스 토큰(GIS 토큰 클라이언트 팝업)으로 로그인 — 처음 보는 구글 계정이면 서버가 가입까지 처리한다.
+// 커스텀 스타일 버튼을 쓰려고 ID 토큰(공식 버튼) 대신 액세스 토큰을 보낸다 — 서버가 tokeninfo로 aud를 확인
+export function loginWithGoogle(accessToken: string) {
+  return request<TokenResponse>("/api/auth/google/access-token", {
     method: "POST",
-    body: JSON.stringify({ idToken }),
+    body: JSON.stringify({ accessToken }),
   });
 }
 
