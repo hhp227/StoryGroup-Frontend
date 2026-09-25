@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { loginUser, logoutUser, refreshTokens, registerUser, unregisterPushToken, type UserSummary } from "@/lib/api";
+import { loginUser, loginWithGoogle, logoutUser, refreshTokens, registerUser, unregisterPushToken, type UserSummary } from "@/lib/api";
 import { removePushToken } from "@/lib/push";
 
 interface AuthState {
@@ -12,6 +12,7 @@ interface AuthState {
 interface AuthContextValue extends AuthState {
   isReady: boolean;
   login: (email: string, password: string) => Promise<void>;
+  googleLogin: (idToken: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<UserSummary>;
   logout: () => void;
 }
@@ -147,6 +148,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     persist({ accessToken: tokens.accessToken, refreshToken: tokens.refreshToken });
   }
 
+  async function googleLogin(idToken: string) {
+    const tokens = await loginWithGoogle(idToken);
+    persist({ accessToken: tokens.accessToken, refreshToken: tokens.refreshToken });
+  }
+
   async function register(name: string, email: string, password: string) {
     return registerUser(name, email, password);
   }
@@ -165,7 +171,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ ...state, isReady, login, register, logout }}>
+    <AuthContext.Provider value={{ ...state, isReady, login, googleLogin, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

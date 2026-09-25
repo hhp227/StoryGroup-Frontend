@@ -4,10 +4,11 @@ import { Suspense, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
+import { GoogleSignInButton } from "@/components/google-sign-in-button";
 import { ApiError } from "@/lib/api";
 
 function LoginForm() {
-  const { login } = useAuth();
+  const { login, googleLogin } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const justRegistered = searchParams.get("registered") === "1";
@@ -26,6 +27,19 @@ function LoginForm() {
       router.push("/");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "로그인에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleGoogleCredential(idToken: string) {
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      await googleLogin(idToken);
+      router.push("/");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "구글 로그인에 실패했습니다. 잠시 후 다시 시도해주세요.");
     } finally {
       setIsSubmitting(false);
     }
@@ -62,6 +76,8 @@ function LoginForm() {
           {isSubmitting ? "로그인하는 중..." : "로그인"}
         </button>
       </form>
+
+      <GoogleSignInButton onCredential={handleGoogleCredential} />
 
       <p style={{ marginTop: "var(--sp-5)", fontSize: "0.9rem", color: "var(--ink-soft)" }}>
         아직 계정이 없나요? <Link href="/register" style={{ color: "var(--accent)", fontWeight: 600 }}>가입하기</Link>

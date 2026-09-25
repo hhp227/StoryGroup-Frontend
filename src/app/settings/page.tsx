@@ -16,11 +16,16 @@ export default function SettingsPage() {
   // 운영자 메뉴 노출용. 조회 실패는 무시한다 - 설정 허브 자체는 프로필 없이도 동작해야 한다.
   // 로그아웃 상태에서는 isLoggedIn 조건이 섹션을 숨기므로 동기 리셋은 필요 없다(lint: set-state-in-effect).
   const [isAdmin, setIsAdmin] = useState(false);
+  // 구글 전용 계정은 비밀번호가 없어 변경 메뉴를 숨긴다. 로드 전·실패 시엔 기존처럼 보여준다
+  const [hasPassword, setHasPassword] = useState(true);
 
   useEffect(() => {
     if (!accessToken) return;
     getMyProfile(accessToken)
-      .then((profile) => setIsAdmin(profile.isAdmin))
+      .then((profile) => {
+        setIsAdmin(profile.isAdmin);
+        setHasPassword(profile.hasPassword);
+      })
       .catch(() => {});
   }, [accessToken]);
 
@@ -31,7 +36,9 @@ export default function SettingsPage() {
       {isLoggedIn && (
         <SettingsSection title="계정">
           <SettingsRow href="/settings/profile" label="프로필 설정" description="이름, 프로필 사진, 상태 메시지" />
-          <SettingsRow href="/settings/password" label="비밀번호 변경" description="로그인 비밀번호를 바꿉니다" />
+          {hasPassword && (
+            <SettingsRow href="/settings/password" label="비밀번호 변경" description="로그인 비밀번호를 바꿉니다" />
+          )}
           <SettingsRow href="/settings/notifications" label="알림 설정" description="채팅·활동 알림 푸시를 켜고 끕니다" />
           <SettingsRow href="/settings/account" label="회원 탈퇴" description="계정을 영구히 삭제합니다" />
           {/* 모바일 프로필 화면 미러 — 계정 메뉴의 마지막 행에 두고 rust 색으로 구분한다.

@@ -78,6 +78,14 @@ export function registerUser(name: string, email: string, password: string) {
   });
 }
 
+// 구글 ID 토큰으로 로그인 — 처음 보는 구글 계정이면 서버가 가입까지 처리한다(설계 §2.3)
+export function loginWithGoogle(idToken: string) {
+  return request<TokenResponse>("/api/auth/google", {
+    method: "POST",
+    body: JSON.stringify({ idToken }),
+  });
+}
+
 export function loginUser(email: string, password: string) {
   return request<TokenResponse>("/api/auth/login", {
     method: "POST",
@@ -835,6 +843,8 @@ export interface Profile {
   statusMessage: string | null;
   // 앱 운영자 여부 - 설정의 운영자 메뉴(사용자 신고 관리) 노출용. 실제 인가는 서버가 다시 검사한다.
   isAdmin: boolean;
+  // 비밀번호 없는(구글 전용) 계정이면 false — 비밀번호 메뉴·탈퇴 확인 방식 분기
+  hasPassword: boolean;
 }
 
 export function getMyProfile(token: string) {
@@ -859,11 +869,12 @@ export function changeMyPassword(token: string, currentPassword: string, newPass
 
 // 회원 탈퇴 - 비밀번호 확인 후 즉시 처리(설계 §5). 400(비밀번호 불일치)/409(탈퇴 불가 사유)는
 // ApiError.message에 서버가 내려준 한국어 안내를 그대로 담아온다.
-export function deleteAccount(token: string, password: string) {
+// 비밀번호 계정은 password, 구글 전용 계정은 confirmText("탈퇴") — 서버가 계정 종류로 분기한다
+export function deleteAccount(token: string, confirmation: { password: string } | { confirmText: string }) {
   return request<void>("/api/users/me", {
     method: "DELETE",
     token,
-    body: JSON.stringify({ password }),
+    body: JSON.stringify(confirmation),
   });
 }
 

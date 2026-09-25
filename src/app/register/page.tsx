@@ -4,10 +4,11 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
+import { GoogleSignInButton } from "@/components/google-sign-in-button";
 import { ApiError } from "@/lib/api";
 
 export default function RegisterPage() {
-  const { register } = useAuth();
+  const { register, googleLogin } = useAuth();
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -24,6 +25,20 @@ export default function RegisterPage() {
       router.push("/login?registered=1");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "가입에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  // 구글은 가입=로그인 — 서버가 계정을 만들고 토큰까지 주므로 바로 홈으로 간다
+  async function handleGoogleCredential(idToken: string) {
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      await googleLogin(idToken);
+      router.push("/");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "구글 로그인에 실패했습니다. 잠시 후 다시 시도해주세요.");
     } finally {
       setIsSubmitting(false);
     }
@@ -66,6 +81,8 @@ export default function RegisterPage() {
           {isSubmitting ? "가입하는 중..." : "가입하기"}
         </button>
       </form>
+
+      <GoogleSignInButton onCredential={handleGoogleCredential} />
 
       <p style={{ marginTop: "var(--sp-5)", fontSize: "0.9rem", color: "var(--ink-soft)" }}>
         이미 계정이 있나요? <Link href="/login" style={{ color: "var(--accent)", fontWeight: 600 }}>로그인</Link>
