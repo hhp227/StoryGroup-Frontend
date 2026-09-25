@@ -32,6 +32,8 @@ export default function SettingsPage() {
         <SettingsSection title="계정">
           <SettingsRow href="/settings/profile" label="프로필 설정" description="이름, 프로필 사진, 상태 메시지" />
           <SettingsRow href="/settings/password" label="비밀번호 변경" description="로그인 비밀번호를 바꿉니다" />
+          <SettingsRow href="/settings/notifications" label="알림 설정" description="채팅·활동 알림 푸시를 켜고 끕니다" />
+          <SettingsRow href="/settings/account" label="회원 탈퇴" description="계정을 영구히 삭제합니다" />
           {/* 모바일 프로필 화면 미러 — 계정 메뉴의 마지막 행에 두고 rust 색으로 구분한다.
               헤더 우측 상단에 있던 버튼을 여기로 옮겼다(상시 노출할 만큼 자주 쓰는 동작이 아니다). */}
           <SettingsActionRow

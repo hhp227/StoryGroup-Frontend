@@ -857,6 +857,16 @@ export function changeMyPassword(token: string, currentPassword: string, newPass
   });
 }
 
+// 회원 탈퇴 - 비밀번호 확인 후 즉시 처리(설계 §5). 400(비밀번호 불일치)/409(탈퇴 불가 사유)는
+// ApiError.message에 서버가 내려준 한국어 안내를 그대로 담아온다.
+export function deleteAccount(token: string, password: string) {
+  return request<void>("/api/users/me", {
+    method: "DELETE",
+    token,
+    body: JSON.stringify({ password }),
+  });
+}
+
 export interface GroupSearchResult {
   id: number;
   name: string;
@@ -1025,5 +1035,26 @@ export function unregisterPushToken(token: string, pushToken: string) {
   return request<void>(`/api/push-tokens?token=${encodeURIComponent(pushToken)}`, {
     method: "DELETE",
     token,
+  });
+}
+
+// ---- 푸시 종류별 on/off(계정 단위) ----
+// 필드명은 서버 계약(PushPreferencesResponse/UpdatePushPreferencesRequest)과 동일 — KMP shared도 같은 이름.
+
+export interface PushPreferences {
+  chatEnabled: boolean;
+  activityEnabled: boolean;
+}
+
+export function getPushPreferences(token: string) {
+  return request<PushPreferences>("/api/users/me/push-preferences", { token });
+}
+
+// 전체 교체 — 토글 하나만 바꿔도 두 값 모두 보낸다(PUT, 204).
+export function updatePushPreferences(token: string, prefs: PushPreferences) {
+  return request<void>("/api/users/me/push-preferences", {
+    method: "PUT",
+    token,
+    body: JSON.stringify(prefs),
   });
 }
