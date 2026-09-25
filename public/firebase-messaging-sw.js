@@ -13,6 +13,11 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
+// 페이지가 SW 등록 전에 열렸어도(첫 세션) 즉시 제어권을 가져온다 —
+// 제어 밖 탭은 notificationclick의 navigate()가 거부돼 딥링크가 유실된다(2026-08-28 웹 E2E 실측).
+self.addEventListener("install", () => self.skipWaiting());
+self.addEventListener("activate", (event) => event.waitUntil(clients.claim()));
+
 messaging.onBackgroundMessage((payload) => {
   const d = payload.data || {};
   if (!d.title) return;
