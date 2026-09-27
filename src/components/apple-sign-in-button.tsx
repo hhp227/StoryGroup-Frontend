@@ -4,9 +4,10 @@ import { useState } from "react";
 import Script from "next/script";
 import type { AppleLoginPayload } from "@/lib/api";
 
-// Services ID·Return URL(콘솔 등록값)이 둘 다 있어야 버튼을 그린다(설계 §4)
-const APPLE_SERVICES_ID = process.env.NEXT_PUBLIC_APPLE_SERVICES_ID ?? "";
-const APPLE_REDIRECT_URI = process.env.NEXT_PUBLIC_APPLE_REDIRECT_URI ?? "";
+// Services ID·Return URL은 공개값(콘솔 등록값) — env로 바꿀 수 있게만 열어 둔다(구글 클라이언트 ID와 같은 방식).
+// Return URL은 콘솔에 등록한 값과 글자 하나까지 같아야 한다 — localhost는 등록 불가라 로컬에선 팝업이 실패한다
+const APPLE_SERVICES_ID = process.env.NEXT_PUBLIC_APPLE_SERVICES_ID ?? "com.hhp227.Application.web";
+const APPLE_REDIRECT_URI = process.env.NEXT_PUBLIC_APPLE_REDIRECT_URI ?? "https://storygroup-frontend.vercel.app/login";
 
 interface AppleSignInResponse {
   authorization: { id_token: string; code: string };
