@@ -104,6 +104,11 @@ html[data-mood="vibrant"] {
 * {
   box-sizing: border-box;
 }
+html {
+  /* 스크롤바 자리를 항상 비워 둔다 — 짧은 페이지(로그인·가입)는 스크롤바가 없어 fixed 헤더의 가운데 정렬이
+     긴 페이지(랜딩·설정)보다 스크롤바 폭의 절반만큼 오른쪽으로 밀렸다 */
+  scrollbar-gutter: stable;
+}
 html,
 body {
   height: 100%;
