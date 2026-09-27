@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { loginUser, loginWithGoogle, logoutUser, refreshTokens, registerUser, unregisterPushToken, type UserSummary } from "@/lib/api";
+import { loginUser, loginWithApple, loginWithGoogle, logoutUser, refreshTokens, registerUser, unregisterPushToken, type AppleLoginPayload, type UserSummary } from "@/lib/api";
 import { removePushToken } from "@/lib/push";
 
 interface AuthState {
@@ -13,6 +13,7 @@ interface AuthContextValue extends AuthState {
   isReady: boolean;
   login: (email: string, password: string) => Promise<void>;
   googleLogin: (accessToken: string) => Promise<void>;
+  appleLogin: (payload: AppleLoginPayload) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<UserSummary>;
   logout: () => void;
 }
@@ -153,6 +154,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     persist({ accessToken: tokens.accessToken, refreshToken: tokens.refreshToken });
   }
 
+  async function appleLogin(payload: AppleLoginPayload) {
+    const tokens = await loginWithApple(payload);
+    persist({ accessToken: tokens.accessToken, refreshToken: tokens.refreshToken });
+  }
+
   async function register(name: string, email: string, password: string) {
     return registerUser(name, email, password);
   }
@@ -171,7 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ ...state, isReady, login, googleLogin, register, logout }}>
+    <AuthContext.Provider value={{ ...state, isReady, login, googleLogin, appleLogin, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

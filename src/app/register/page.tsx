@@ -4,11 +4,13 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
+import { AppleSignInButton } from "@/components/apple-sign-in-button";
 import { GoogleSignInButton } from "@/components/google-sign-in-button";
-import { ApiError } from "@/lib/api";
+import { OrDivider } from "@/components/or-divider";
+import { ApiError, type AppleLoginPayload } from "@/lib/api";
 
 export default function RegisterPage() {
-  const { register, googleLogin } = useAuth();
+  const { register, googleLogin, appleLogin } = useAuth();
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -39,6 +41,19 @@ export default function RegisterPage() {
       router.push("/");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "구글 로그인에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleAppleCredential(payload: AppleLoginPayload) {
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      await appleLogin(payload);
+      router.push("/");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "애플 로그인에 실패했습니다. 잠시 후 다시 시도해주세요.");
     } finally {
       setIsSubmitting(false);
     }
@@ -82,6 +97,8 @@ export default function RegisterPage() {
         </button>
       </form>
 
+      <OrDivider />
+      <AppleSignInButton onCredential={handleAppleCredential} onError={setError} disabled={isSubmitting} />
       <GoogleSignInButton onAccessToken={handleGoogleAccessToken} onError={setError} disabled={isSubmitting} />
 
       <p style={{ marginTop: "var(--sp-5)", fontSize: "0.9rem", color: "var(--ink-soft)" }}>

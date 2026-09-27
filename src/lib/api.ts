@@ -87,6 +87,21 @@ export function loginWithGoogle(accessToken: string) {
   });
 }
 
+// 애플 JS 팝업 결과 — 이름은 최초 인가 1회만 온다(서버가 신규 가입 때만 쓴다)
+export interface AppleLoginPayload {
+  identityToken: string;
+  authorizationCode: string;
+  firstName?: string;
+  lastName?: string;
+}
+
+export function loginWithApple(payload: AppleLoginPayload) {
+  return request<TokenResponse>("/api/auth/apple", {
+    method: "POST",
+    body: JSON.stringify({ ...payload, clientType: "WEB" }),
+  });
+}
+
 export function loginUser(email: string, password: string) {
   return request<TokenResponse>("/api/auth/login", {
     method: "POST",

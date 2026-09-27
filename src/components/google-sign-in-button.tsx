@@ -59,7 +59,7 @@ function GoogleLogo() {
   );
 }
 
-// "또는" 구분선 + 로그인 버튼과 같은 btn-primary 구글 버튼. 공식 GIS 버튼(iframe)은 스타일을 바꿀 수 없어
+// 로그인 버튼과 같은 btn-primary 구글 버튼. 공식 GIS 버튼(iframe)은 스타일을 바꿀 수 없어
 // 토큰 클라이언트 팝업으로 액세스 토큰을 받는다 — 서버가 tokeninfo로 aud를 확인한다(/api/auth/google/access-token).
 // 로그인·가입 화면이 같이 쓴다 — 구글은 가입과 로그인이 한 경로(서버가 없으면 만든다).
 export function GoogleSignInButton({
@@ -100,20 +100,6 @@ export function GoogleSignInButton({
   return (
     <>
       <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" onReady={() => setScriptReady(true)} />
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "var(--sp-3)",
-          margin: "var(--sp-5) 0",
-          color: "var(--ink-soft)",
-          fontSize: "0.85rem",
-        }}
-      >
-        <span style={{ flex: 1, height: 1, background: "var(--stone-border)" }} />
-        또는
-        <span style={{ flex: 1, height: 1, background: "var(--stone-border)" }} />
-      </div>
       <button
         className="btn btn-primary"
         type="button"
