@@ -101,7 +101,7 @@ export default function RegisterPage() {
       <AppleSignInButton onCredential={handleAppleCredential} onError={setError} disabled={isSubmitting} />
       <GoogleSignInButton onAccessToken={handleGoogleAccessToken} onError={setError} disabled={isSubmitting} />
 
-      <p style={{ marginTop: "var(--sp-5)", fontSize: "0.9rem", color: "var(--ink-soft)" }}>
+      <p style={{ marginTop: "var(--sp-5)", fontSize: "0.9rem", color: "var(--ink-soft)", textAlign: "center" }}>
         이미 계정이 있나요? <Link href="/login" style={{ color: "var(--accent)", fontWeight: 600 }}>로그인</Link>
       </p>
     </div>

@@ -96,7 +96,7 @@ function LoginForm() {
       <AppleSignInButton onCredential={handleAppleCredential} onError={setError} disabled={isSubmitting} />
       <GoogleSignInButton onAccessToken={handleGoogleAccessToken} onError={setError} disabled={isSubmitting} />
 
-      <p style={{ marginTop: "var(--sp-5)", fontSize: "0.9rem", color: "var(--ink-soft)" }}>
+      <p style={{ marginTop: "var(--sp-5)", fontSize: "0.9rem", color: "var(--ink-soft)", textAlign: "center" }}>
         아직 계정이 없나요? <Link href="/register" style={{ color: "var(--accent)", fontWeight: 600 }}>가입하기</Link>
       </p>
     </div>
