@@ -37,16 +37,6 @@ function Hero() {
               로그인
             </Link>
           </div>
-          <div className="lp-proof">
-            <span className="lp-proof-avatars" aria-hidden>
-              {["지", "민", "수", "하"].map((ch, i) => (
-                <span key={ch} className={`lp-av lp-av-${(i % 4) + 1} lp-av-sm`}>
-                  {ch}
-                </span>
-              ))}
-            </span>
-            <span>{HERO.proof}</span>
-          </div>
         </div>
         <HeroStage />
       </div>

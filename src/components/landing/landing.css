@@ -101,23 +101,6 @@
   gap: var(--sp-5);
   max-width: 540px;
 }
-.lp-proof {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  font-size: 0.88rem;
-  color: var(--ink-soft);
-}
-.lp-proof-avatars {
-  display: flex;
-}
-.lp-proof-avatars .lp-av {
-  box-shadow: 0 0 0 2px var(--linen);
-}
-.lp-proof-avatars .lp-av + .lp-av {
-  margin-left: -8px;
-}
-
 .lp-stage {
   position: relative;
   width: 540px;
