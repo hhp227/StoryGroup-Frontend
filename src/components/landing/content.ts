@@ -102,6 +102,31 @@ export const FAQS = [
   },
 ] as const;
 
+export const DOWNLOAD = {
+  kicker: "DOWNLOAD",
+  title: "휴대폰에서도\n그룹 소식을 바로 받아보세요",
+  body: "Android · iOS 앱으로 채팅과 알림을 놓치지 않고, 통화도 바로 받을 수 있어요.",
+} as const;
+
+/**
+ * 스토어 배지 링크. TODO: 스토어 출시 후 실제 앱 상세 URL로 교체 — 지금은 임시로 각 스토어 메인으로 보낸다.
+ * 배지 이미지는 공식 한국어 배지(540×167, 투명 배경).
+ */
+export const STORE_BADGES = [
+  {
+    store: "Google Play",
+    href: "https://play.google.com/store",
+    src: "/badges/google-play-ko.png",
+    alt: "Google Play에서 다운로드하기",
+  },
+  {
+    store: "App Store",
+    href: "https://www.apple.com/kr/app-store/",
+    src: "/badges/app-store-ko.png",
+    alt: "App Store에서 다운로드하기",
+  },
+] as const;
+
 export const CTA = {
   title: "우리 그룹, 오늘 열어볼까요?",
   body: "가입은 1분이면 충분해요. 그룹 이름 하나면 첫 그룹이 열려요.",

@@ -441,6 +441,35 @@
   line-height: 1.7;
 }
 
+/* ---- 앱 다운로드 ---- */
+.lp-download {
+  padding: var(--sp-8) 0;
+}
+.lp-store-row {
+  margin-top: var(--sp-6);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-4);
+}
+.lp-store-badge {
+  display: block;
+  border-radius: 12px;
+  transition: transform 0.15s ease;
+}
+.lp-store-badge:hover {
+  transform: translateY(-2px);
+}
+.lp-store-badge:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.lp-store-badge img {
+  display: block;
+  width: 200px;
+  height: auto;
+}
+
 /* ---- CTA / 푸터 ---- */
 .lp-cta {
   background: var(--accent);
@@ -1163,9 +1192,15 @@
   .lp-footer-inner {
     flex-direction: column;
   }
+  .lp-store-badge img {
+    width: 150px;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .lp-typing i {
     animation: none;
+  }
+  .lp-store-badge {
+    transition: none;
   }
 }

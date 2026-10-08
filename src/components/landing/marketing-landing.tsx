@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { CTA, FAQS, FEATURES, FOOTER_LINKS, HERO, HIGHLIGHTS, HOW, STEPS, type Feature } from "./content";
+import { CTA, DOWNLOAD, FAQS, FEATURES, FOOTER_LINKS, HERO, HIGHLIGHTS, HOW, STEPS, STORE_BADGES, type Feature } from "./content";
 import { FeatureScreen, HeroStage, STEP_VISUALS } from "./phone-mockups";
 import "./landing.css";
 
 /**
- * 비로그인 홈(/) 랜딩 — 히어로(앱 홈 피드 폰) → 특징 띠 → 3단계 → 기능 3종(앱 화면) → FAQ → CTA.
+ * 비로그인 홈(/) 랜딩 — 히어로(앱 홈 피드 폰) → 특징 띠 → 3단계 → 기능 3종(앱 화면) → FAQ → 앱 다운로드 → CTA.
  * 상태 없는 정적 페이지. FAQ 아코디언은 <details>라 클라이언트 상태가 필요 없다.
  * 색은 전부 테마 토큰이라 무드(다정함/캐주얼)·다크 모드를 그대로 따른다.
  */
@@ -16,6 +16,7 @@ export function MarketingLanding() {
       <HowItWorks />
       <Features />
       <Faq />
+      <AppDownload />
       <Cta />
       <LandingFooter />
     </div>
@@ -118,6 +119,26 @@ function Faq() {
               <summary>{item.q}</summary>
               <p>{item.a}</p>
             </details>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function AppDownload() {
+  return (
+    <section id="download" className="lp-download">
+      <div className="lp-inner lp-center">
+        <span className="lp-kicker">{DOWNLOAD.kicker}</span>
+        <h2 className="lp-h2">{DOWNLOAD.title}</h2>
+        <p className="lp-sub">{DOWNLOAD.body}</p>
+        <div className="lp-store-row">
+          {STORE_BADGES.map((badge) => (
+            <a key={badge.store} className="lp-store-badge" href={badge.href} target="_blank" rel="noopener noreferrer">
+              {/* eslint-disable-next-line @next/next/no-img-element -- 정적 배지라 최적화 불필요 */}
+              <img src={badge.src} alt={badge.alt} width={540} height={167} />
+            </a>
           ))}
         </div>
       </div>
